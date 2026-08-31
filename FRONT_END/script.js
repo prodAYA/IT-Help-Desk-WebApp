@@ -232,6 +232,137 @@ function initializeUserDashboard() {
         activeTab.classList.add('active');
         renderNotifications(activeTab.dataset.tab);
     }
+
+    setupTicketForm(storedUser);
+    renderTicketsForUser(storedUser.employeeCode);
+}
+
+function setupTicketForm(currentUser) {
+    const toggleButton = document.getElementById('toggle-ticket-form');
+    const formWrapper = document.getElementById('ticket-form-wrapper');
+    const ticketForm = document.getElementById('new-ticket-form');
+    const descriptionField = document.getElementById('ticket-description');
+    const charCount = document.getElementById('ticket-char-count');
+    const attachmentField = document.getElementById('ticket-attachment');
+
+    if (!toggleButton || !formWrapper || !ticketForm) {
+        return;
+    }
+
+    function setFormOpenState(isOpen) {
+        formWrapper.classList.toggle('open', isOpen);
+        formWrapper.classList.toggle('collapsed', !isOpen);
+        toggleButton.textContent = isOpen ? 'Cancel' : 'Create New Ticket';
+        toggleButton.classList.toggle('cancel-mode', isOpen);
+    }
+
+    toggleButton.addEventListener('click', function() {
+        const isOpen = formWrapper.classList.contains('open');
+        setFormOpenState(!isOpen);
+    });
+
+    if (descriptionField && charCount) {
+        const updateCounter = function() {
+            charCount.textContent = descriptionField.value.length;
+        };
+
+        descriptionField.addEventListener('input', updateCounter);
+        updateCounter();
+    }
+
+    ticketForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const category = document.getElementById('ticket-category').value.trim();
+        const description = descriptionField.value.trim();
+        const file = attachmentField.files && attachmentField.files[0] ? attachmentField.files[0] : null;
+
+        if (!category) {
+            alert('Please select a ticket category.');
+            return;
+        }
+
+        if (!description) {
+            alert('Please enter a ticket description.');
+            return;
+        }
+
+        if (description.length > 650) {
+            alert('Ticket description must be 650 characters or less.');
+            return;
+        }
+
+        if (file && !file.type.startsWith('image/')) {
+            alert('Only image files can be attached to a ticket.');
+            attachmentField.value = '';
+            return;
+        }
+
+        const highestTicketId = tickets.reduce((max, ticket) => Math.max(max, Number(ticket.ticketId) || 0), 0);
+        const newTicket = {
+            ticketId: highestTicketId + 1,
+            employeeCode: currentUser.employeeCode,
+            category: category,
+            description: description,
+            attachment: file ? file.name : null,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            resolvedAt: null
+        };
+
+        tickets.push(newTicket);
+        renderTicketsForUser(currentUser.employeeCode);
+        ticketForm.reset();
+        if (charCount) {
+            charCount.textContent = '0';
+        }
+        setFormOpenState(false);
+    });
+}
+
+function renderTicketsForUser(employeeCode) {
+    const pendingList = document.getElementById('pending-ticket-list');
+    const resolvedList = document.getElementById('resolved-ticket-list');
+
+    if (!pendingList || !resolvedList) {
+        return;
+    }
+
+    const userTickets = tickets.filter(ticket => ticket.employeeCode === employeeCode);
+    const pendingTickets = userTickets.filter(ticket => ticket.status === 'pending');
+    const resolvedTickets = userTickets.filter(ticket => ticket.status === 'resolved');
+
+    pendingList.innerHTML = pendingTickets.length
+        ? pendingTickets.map(ticket => renderTicketCard(ticket)).join('')
+        : '<div class="empty-ticket-state">No pending tickets.</div>';
+
+    resolvedList.innerHTML = resolvedTickets.length
+        ? resolvedTickets.map(ticket => renderTicketCard(ticket)).join('')
+        : '<div class="empty-ticket-state">No resolved tickets.</div>';
+}
+
+function renderTicketCard(ticket) {
+    const createdAt = new Date(ticket.createdAt).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+
+    return `
+        <div class="ticket-item">
+            <div class="ticket-item-top">
+                <span class="ticket-id">#${ticket.ticketId}</span>
+                <span class="ticket-category">${ticket.category}</span>
+            </div>
+            <p class="ticket-description">${ticket.description}</p>
+            <div class="ticket-meta">
+                <span>${ticket.status === 'pending' ? 'Pending' : 'Resolved'}</span>
+                <span>${createdAt}</span>
+            </div>
+        </div>
+    `;
 }
 
 function initializeAdminDashboard() {

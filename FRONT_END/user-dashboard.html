@@ -39,6 +39,44 @@
 
     <main class="dashboard-page">
         <section class="dashboard-card">
+                        <div class="ticket-creator-section">
+                <button id="toggle-ticket-form" class="ticket-toggle-btn" type="button">Create New Ticket</button>
+                <div class="ticket-seam" aria-hidden="true"></div>
+
+                <div id="ticket-form-wrapper" class="ticket-form-wrapper collapsed">
+                    <form id="new-ticket-form" class="ticket-form">
+                        <div class="form-group">
+                            <label for="ticket-category">Category</label>
+                            <select id="ticket-category" name="ticket-category" required>
+                                <option value="">Select a category</option>
+                                <option value="Network">Network</option>
+                                <option value="Hardware">Hardware</option>
+                                <option value="Software">Software</option>
+                                <option value="Account / Access">Account / Access</option>
+                                <option value="Email / Collaboration">Email / Collaboration</option>
+                                <option value="Security">Security</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ticket-description">Description</label>
+                            <div class="textarea-wrap">
+                                <textarea id="ticket-description" name="ticket-description" maxlength="650" rows="6" placeholder="Describe the issue in detail..." required></textarea>
+                                <div class="char-counter"><span id="ticket-char-count">0</span>/650</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ticket-attachment">Attachment</label>
+                            <input id="ticket-attachment" name="ticket-attachment" type="file" accept="image/*">
+                        </div>
+
+                        <button type="submit" class="login-btn submit-ticket-btn">Submit</button>
+                    </form>
+                </div>
+            </div>
+
             <div class="user-welcome" id="welcome-name-main">Hello</div>
 
             <div class="dashboard-summary">
@@ -57,6 +95,24 @@
             </div>
         </section>
     </main>
+    
+    <section class="ticket-list-section">
+        <div class="ticket-list-card">
+            <h2>My Tickets</h2>
+
+            <div class="ticket-list-grid">
+                <div class="ticket-list-panel">
+                    <h3>Pending</h3>
+                    <div id="pending-ticket-list" class="ticket-list"></div>
+                </div>
+
+                <div class="ticket-list-panel">
+                    <h3>Resolved</h3>
+                    <div id="resolved-ticket-list" class="ticket-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <script src="fake-data.js"></script>
     <script src="script.js"></script>
