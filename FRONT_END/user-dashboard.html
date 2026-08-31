@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Help Desk - User Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="user-dashboard">
+    <nav class="topbar">
+        <div class="topbar-left">
+            <span class="topbar-title" id="welcome-name">Hello</span>
+        </div>
+        <div class="topbar-right">
+            <button class="notification-btn" id="notification-btn" aria-label="Notifications">🔔 Notifications</button>
+            <div class="dropdown">
+                <button class="dropdown-btn" type="button">☰ Options</button>
+                <div class="dropdown-content">
+                    <a href="#" id="darkmode-toggle">🌙 Enable Dark Mode</a>
+                    <a href="login.html">↩️ Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <aside class="notification-panel" id="notification-panel" aria-label="Notifications sidebar">
+        <div class="notification-header">
+            <h3>Notifications</h3>
+            <button class="close-btn" id="close-notifications" aria-label="Close notifications">×</button>
+        </div>
+
+        <div class="notification-tabs">
+            <button class="notification-tab active" data-tab="New Comments" type="button">New Comments</button>
+            <button class="notification-tab" data-tab="Ticket Status" type="button">Ticket Status</button>
+        </div>
+
+        <div class="notification-list" id="notification-list"></div>
+    </aside>
+
+    <main class="dashboard-page">
+        <section class="dashboard-card">
+            <div class="user-welcome" id="welcome-name-main">Hello</div>
+
+            <div class="dashboard-summary">
+                <div class="summary-box">
+                    <div class="summary-label">Open Tickets</div>
+                    <div class="summary-value">3</div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-label">Resolved</div>
+                    <div class="summary-value">2</div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-label">Urgent</div>
+                    <div class="summary-value">1</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="fake-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

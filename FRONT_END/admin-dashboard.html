@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Help Desk - Admin Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="admin-dashboard">
+    <nav class="topbar">
+        <div class="topbar-left">
+            <span class="dashboard-title" id="admin-dashboard-title">Admin Dashboard</span>
+        </div>
+        <div class="topbar-right">
+            <div class="dropdown">
+                <button class="dropdown-btn" type="button">☰ Options</button>
+                <div class="dropdown-content">
+                    <a href="#" id="darkmode-toggle">🌙 Enable Dark Mode</a>
+                    <a href="admin-login.html">↩️ Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-page">
+        <section class="dashboard-card">
+            <div class="user-welcome">Admin Dashboard</div>
+
+            <div class="dashboard-summary">
+                <div class="summary-box">
+                    <div class="summary-label">Open Tickets</div>
+                    <div class="summary-value">5</div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-label">Resolved Today</div>
+                    <div class="summary-value">8</div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-label">Unassigned</div>
+                    <div class="summary-value">2</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="fake-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
