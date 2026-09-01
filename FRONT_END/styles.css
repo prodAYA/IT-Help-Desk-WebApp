@@ -53,6 +53,7 @@ button, input {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 4px 12px var(--shadow-strong);
+    border-radius: 0 0 1rem 1rem;
 }
 
 .topbar-left {
@@ -538,18 +539,51 @@ button, input {
 }
 
 .notification-item {
+    position: relative;
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 0.75rem;
     padding: 0.85rem 0.9rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
     margin-bottom: 0.75rem;
+    transition: transform 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease, padding 0.35s ease;
+    max-height: 180px;
+    overflow: hidden;
+}
+
+.notification-item.is-dismissing {
+    transform: translateX(115%);
+    opacity: 0;
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.dismiss-notification {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.65rem;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    opacity: 0.65;
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 0.2rem;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.dismiss-notification:hover {
+    color: #dc2626;
+    opacity: 1;
 }
 
 .notification-message {
     font-size: 0.95rem;
     line-height: 1.5;
     color: var(--text-color);
+    padding-right: 3.5rem;
 }
 
 .notification-time {

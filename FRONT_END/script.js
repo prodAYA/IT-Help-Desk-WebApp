@@ -181,10 +181,15 @@ function initializeUserDashboard() {
     }
 
     const userNotifications = notifications.filter(item => item.employeeCode === storedUser.employeeCode);
+    const dismissedNotificationIds = new Set();
     const defaultTab = 'New Comments';
 
     function renderNotifications(tabName) {
         const filteredNotifications = userNotifications.filter(item => {
+            if (dismissedNotificationIds.has(item.notificationId)) {
+                return false;
+            }
+
             if (tabName === 'New Comments') {
                 return item.type === 'new_comment';
             }
@@ -211,12 +216,31 @@ function initializeUserDashboard() {
             });
 
             return `
-                <div class="notification-item">
+                <div class="notification-item" data-notification-id="${item.notificationId}">
+                    <button class="dismiss-notification" type="button" aria-label="Dismiss notification">Dismiss</button>
                     <div class="notification-message">${item.message}</div>
                     <div class="notification-time">${timestamp}</div>
                 </div>
             `;
         }).join('');
+    }
+
+    if (notificationList) {
+        notificationList.addEventListener('click', function(e) {
+            const dismissButton = e.target.closest('.dismiss-notification');
+            if (!dismissButton) {
+                return;
+            }
+
+            const notificationItem = dismissButton.closest('.notification-item');
+            const notificationId = Number(notificationItem.dataset.notificationId);
+            dismissedNotificationIds.add(notificationId);
+            notificationItem.classList.add('is-dismissing');
+
+            notificationItem.addEventListener('transitionend', function() {
+                renderNotifications(document.querySelector('.notification-tab.active').dataset.tab);
+            }, { once: true });
+        });
     }
 
     notificationTabButtons.forEach(tab => {
