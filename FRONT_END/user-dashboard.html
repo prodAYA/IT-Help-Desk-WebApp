@@ -82,19 +82,15 @@
     
     <section class="ticket-list-section">
         <div class="ticket-list-card">
-            <h2>My Tickets</h2>
-
-            <div class="ticket-list-grid">
-                <div class="ticket-list-panel">
-                    <h3>Pending</h3>
-                    <div id="pending-ticket-list" class="ticket-list"></div>
-                </div>
-
-                <div class="ticket-list-panel">
-                    <h3>Resolved</h3>
-                    <div id="resolved-ticket-list" class="ticket-list"></div>
+            <div class="ticket-list-heading">
+                <h2>My Tickets</h2>
+                <div class="ticket-view-switch" role="group" aria-label="Ticket status filter">
+                    <button class="ticket-view-option active" type="button" data-ticket-status="pending">Live Tickets</button>
+                    <button class="ticket-view-option" type="button" data-ticket-status="resolved">Resolved Tickets</button>
                 </div>
             </div>
+
+            <div id="ticket-list" class="ticket-list"></div>
         </div>
     </section>
 

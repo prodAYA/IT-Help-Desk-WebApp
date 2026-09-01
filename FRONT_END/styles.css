@@ -6,6 +6,7 @@
 }
 
 :root {
+    --notification-width: 340px;
     --primary-color: #6b7280;
     --primary-light: #9ca3af;
     --bg-color: #ffffff;
@@ -38,6 +39,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     transition: background-color 0.3s, color 0.3s;
+    overflow-x: hidden;
 }
 
 button, input {
@@ -54,6 +56,13 @@ button, input {
     align-items: center;
     box-shadow: 0 4px 12px var(--shadow-strong);
     border-radius: 0 0 1rem 1rem;
+    width: 100%;
+    transition: width 0.3s ease, border-radius 0.3s ease;
+}
+
+body.notifications-open .topbar {
+    width: calc(100% - var(--notification-width));
+    border-radius: 0 0 1rem 0;
 }
 
 .topbar-left {
@@ -331,27 +340,42 @@ button, input {
     padding: 1.5rem;
 }
 
-.ticket-list-card h2 {
+.ticket-list-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 1rem;
+}
+
+.ticket-list-card h2 {
     color: var(--primary-color);
 }
 
-.ticket-list-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1rem;
-}
-
-.ticket-list-panel {
-    background: var(--panel-bg);
+.ticket-view-switch {
+    display: inline-flex;
+    padding: 0.25rem;
     border: 1px solid var(--panel-border);
-    border-radius: 0.75rem;
-    padding: 1rem;
+    border-radius: 999px;
+    background: var(--panel-bg);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 
-.ticket-list-panel h3 {
-    margin-bottom: 0.75rem;
+.ticket-view-option {
+    border: none;
+    border-radius: 999px;
+    background: transparent;
     color: var(--text-color);
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.55rem 0.9rem;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ticket-view-option.active {
+    background: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 3px 8px var(--shadow-soft);
 }
 
 .ticket-list {
@@ -361,11 +385,26 @@ button, input {
 }
 
 .ticket-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: var(--text-color);
+    cursor: pointer;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
     padding: 0.8rem;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ticket-item:hover,
+.ticket-item:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--primary-light);
+    box-shadow: 0 7px 16px var(--shadow-soft);
+    outline: none;
 }
 
 .ticket-item-top {
@@ -386,19 +425,65 @@ button, input {
     opacity: 0.8;
 }
 
-.ticket-description {
-    font-size: 0.9rem;
-    line-height: 1.5;
-    margin-bottom: 0.6rem;
-}
-
-.ticket-meta {
+.ticket-preview-meta {
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;
     font-size: 0.72rem;
     color: var(--text-color);
     opacity: 0.75;
+}
+
+.ticket-detail-card {
+    max-width: 760px;
+}
+
+.ticket-detail-card h1 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+}
+
+.ticket-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ticket-detail-row {
+    display: grid;
+    grid-template-columns: minmax(130px, 0.35fr) 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ticket-detail-row > span {
+    color: var(--text-color);
+    opacity: 0.7;
+    font-weight: 600;
+}
+
+.ticket-detail-row strong,
+.ticket-detail-row p {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.ticket-detail-description p {
+    margin: 0;
+}
+
+.back-to-tickets {
+    display: inline-block;
+    margin-top: 1.5rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.back-to-tickets:hover {
+    text-decoration: underline;
 }
 
 .empty-ticket-state {
@@ -468,10 +553,10 @@ button, input {
 /* Notification Sidebar */
 .notification-panel {
     position: fixed;
-    top: 80px;
+    top: 0;
     right: 0;
-    width: 340px;
-    height: calc(100vh - 80px);
+    width: var(--notification-width);
+    height: 100vh;
     background-color: var(--bg-color);
     border-left: 1px solid var(--border-color);
     box-shadow: -8px 0 20px var(--shadow-soft);
@@ -480,6 +565,7 @@ button, input {
     z-index: 25;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .notification-panel.open {
@@ -535,6 +621,7 @@ button, input {
 .notification-list {
     padding: 1rem;
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
 }
 
@@ -549,6 +636,7 @@ button, input {
     transition: transform 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease, padding 0.35s ease;
     max-height: 180px;
     overflow: hidden;
+    will-change: transform, opacity;
 }
 
 .notification-item.is-dismissing {
@@ -625,8 +713,28 @@ button, input {
         padding: 1.5rem;
     }
 
+    .ticket-list-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ticket-view-switch {
+        width: 100%;
+    }
+
+    .ticket-view-option {
+        flex: 1;
+    }
+
     .notification-panel {
         width: 100%;
+    }
+
+    body.notifications-open .topbar {
+        width: 0;
+        overflow: hidden;
+        padding-left: 0;
+        padding-right: 0;
     }
 }
 
@@ -659,5 +767,10 @@ button, input {
     .dashboard-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .ticket-detail-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
     }
 }

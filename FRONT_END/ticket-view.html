@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Help Desk - Ticket</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="ticket-view">
+    <nav class="topbar">
+        <div class="topbar-left">
+            <span class="topbar-title" id="ticket-view-title">Ticket</span>
+        </div>
+        <div class="topbar-right">
+            <div class="dropdown">
+                <button class="dropdown-btn" type="button">☰ Options</button>
+                <div class="dropdown-content">
+                    <a href="#" id="darkmode-toggle">🌙 Enable Dark Mode</a>
+                    <a href="user-dashboard.html">↩️ Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-page">
+        <section class="dashboard-card ticket-detail-card">
+            <h1>Ticket Details</h1>
+            <div id="ticket-details" class="ticket-details"></div>
+            <a class="back-to-tickets" href="user-dashboard.html">Back to My Tickets</a>
+        </section>
+    </main>
+
+    <script src="fake-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

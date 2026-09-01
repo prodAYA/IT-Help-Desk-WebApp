@@ -99,6 +99,11 @@ function setupPageLogic() {
     if (adminDashboardPage) {
         initializeAdminDashboard();
     }
+
+    const ticketViewPage = document.body.dataset.page === 'ticket-view';
+    if (ticketViewPage) {
+        initializeTicketView();
+    }
 }
 
 function handleUserLogin() {
@@ -170,13 +175,15 @@ function initializeUserDashboard() {
 
     if (notificationBtn && notificationPanel) {
         notificationBtn.addEventListener('click', function() {
-            notificationPanel.classList.toggle('open');
+            const isOpen = notificationPanel.classList.toggle('open');
+            document.body.classList.toggle('notifications-open', isOpen);
         });
     }
 
     if (closeNotificationBtn && notificationPanel) {
         closeNotificationBtn.addEventListener('click', function() {
             notificationPanel.classList.remove('open');
+            document.body.classList.remove('notifications-open');
         });
     }
 
@@ -258,7 +265,7 @@ function initializeUserDashboard() {
     }
 
     setupTicketForm(storedUser);
-    renderTicketsForUser(storedUser.employeeCode);
+    setupTicketViewSwitch(storedUser.employeeCode);
 }
 
 function setupTicketForm(currentUser) {
@@ -335,7 +342,7 @@ function setupTicketForm(currentUser) {
         };
 
         tickets.push(newTicket);
-        renderTicketsForUser(currentUser.employeeCode);
+        refreshTicketList(currentUser.employeeCode);
         ticketForm.reset();
         if (charCount) {
             charCount.textContent = '0';
@@ -344,28 +351,60 @@ function setupTicketForm(currentUser) {
     });
 }
 
-function renderTicketsForUser(employeeCode) {
-    const pendingList = document.getElementById('pending-ticket-list');
-    const resolvedList = document.getElementById('resolved-ticket-list');
+function setupTicketViewSwitch(employeeCode) {
+    const ticketList = document.getElementById('ticket-list');
+    const viewOptions = document.querySelectorAll('.ticket-view-option');
 
-    if (!pendingList || !resolvedList) {
+    if (!ticketList || !viewOptions.length) {
         return;
     }
 
-    const userTickets = tickets.filter(ticket => ticket.employeeCode === employeeCode);
-    const pendingTickets = userTickets.filter(ticket => ticket.status === 'pending');
-    const resolvedTickets = userTickets.filter(ticket => ticket.status === 'resolved');
+    function renderTickets(status) {
+        renderTicketList(employeeCode, status, ticketList);
+    }
 
-    pendingList.innerHTML = pendingTickets.length
-        ? pendingTickets.map(ticket => renderTicketCard(ticket)).join('')
-        : '<div class="empty-ticket-state">No pending tickets.</div>';
+    viewOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            viewOptions.forEach(button => button.classList.remove('active'));
+            this.classList.add('active');
+            renderTickets(this.dataset.ticketStatus);
+        });
+    });
 
-    resolvedList.innerHTML = resolvedTickets.length
-        ? resolvedTickets.map(ticket => renderTicketCard(ticket)).join('')
-        : '<div class="empty-ticket-state">No resolved tickets.</div>';
+    ticketList.addEventListener('click', function(e) {
+        const ticketPreview = e.target.closest('.ticket-item');
+        if (!ticketPreview) {
+            return;
+        }
+
+        localStorage.setItem('selectedTicketId', ticketPreview.dataset.ticketId);
+        window.location.href = 'ticket-view.html';
+    });
+
+    renderTickets('pending');
 }
 
-function renderTicketCard(ticket) {
+function refreshTicketList(employeeCode) {
+    const ticketList = document.getElementById('ticket-list');
+    const activeOption = document.querySelector('.ticket-view-option.active');
+    const activeStatus = activeOption ? activeOption.dataset.ticketStatus : 'pending';
+
+    if (ticketList) {
+        renderTicketList(employeeCode, activeStatus, ticketList);
+    }
+}
+
+function renderTicketList(employeeCode, status, ticketList) {
+    const userTickets = tickets.filter(ticket => {
+        return ticket.employeeCode === employeeCode && ticket.status === status;
+    });
+
+    ticketList.innerHTML = userTickets.length
+        ? userTickets.map(ticket => renderTicketPreview(ticket)).join('')
+        : '<div class="empty-ticket-state">No ' + (status === 'pending' ? 'live' : 'resolved') + ' tickets.</div>';
+}
+
+function renderTicketPreview(ticket) {
     const createdAt = new Date(ticket.createdAt).toLocaleString([], {
         month: 'short',
         day: 'numeric',
@@ -375,18 +414,61 @@ function renderTicketCard(ticket) {
     });
 
     return `
-        <div class="ticket-item">
+        <button class="ticket-item" type="button" data-ticket-id="${ticket.ticketId}">
             <div class="ticket-item-top">
                 <span class="ticket-id">#${ticket.ticketId}</span>
                 <span class="ticket-category">${ticket.category}</span>
             </div>
-            <p class="ticket-description">${ticket.description}</p>
-            <div class="ticket-meta">
-                <span>${ticket.status === 'pending' ? 'Pending' : 'Resolved'}</span>
+            <div class="ticket-preview-meta">
+                <span>${ticket.status === 'pending' ? 'Live' : 'Resolved'}</span>
                 <span>${createdAt}</span>
             </div>
-        </div>
+        </button>
     `;
+}
+
+function initializeTicketView() {
+    const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+    const ticketId = Number(localStorage.getItem('selectedTicketId'));
+    const ticket = storedUser
+        ? tickets.find(item => item.employeeCode === storedUser.employeeCode && item.ticketId === ticketId)
+        : null;
+
+    if (!storedUser || !ticket) {
+        window.location.href = 'user-dashboard.html';
+        return;
+    }
+
+    const titleEl = document.getElementById('ticket-view-title');
+    const detailEl = document.getElementById('ticket-details');
+    const attachmentText = ticket.attachment || 'None';
+
+    if (titleEl) {
+        titleEl.textContent = 'Ticket #' + ticket.ticketId;
+    }
+
+    if (detailEl) {
+        detailEl.innerHTML = `
+            <div class="ticket-detail-row"><span>Ticket ID</span><strong>#${ticket.ticketId}</strong></div>
+            <div class="ticket-detail-row"><span>Employee Code</span><strong>${ticket.employeeCode}</strong></div>
+            <div class="ticket-detail-row"><span>Category</span><strong>${ticket.category}</strong></div>
+            <div class="ticket-detail-row"><span>Status</span><strong>${ticket.status === 'pending' ? 'Live' : 'Resolved'}</strong></div>
+            <div class="ticket-detail-row"><span>Created</span><strong>${formatTicketDate(ticket.createdAt)}</strong></div>
+            <div class="ticket-detail-row"><span>Resolved</span><strong>${ticket.resolvedAt ? formatTicketDate(ticket.resolvedAt) : 'Not resolved'}</strong></div>
+            <div class="ticket-detail-row ticket-detail-description"><span>Description</span><p>${ticket.description}</p></div>
+            <div class="ticket-detail-row"><span>Attachment</span><strong>${attachmentText}</strong></div>
+        `;
+    }
+}
+
+function formatTicketDate(dateValue) {
+    return new Date(dateValue).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
 }
 
 function initializeAdminDashboard() {
