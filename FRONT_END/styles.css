@@ -53,7 +53,6 @@ button, input {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 4px 12px var(--shadow-strong);
-    border-radius: 0 0 1rem 1rem;
 }
 
 .topbar-left {

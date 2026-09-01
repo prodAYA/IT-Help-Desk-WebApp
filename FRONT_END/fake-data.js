@@ -16,6 +16,12 @@ const users = [
     },
 
     {
+        employeeCode: "EMP003",
+        password: "user789",
+        name: "Sara Ahmed"
+    },
+
+    {
         employeeCode: "EMP002",
         password: "user456",
         name: "Ahmed Ali"
