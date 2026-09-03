@@ -68,6 +68,11 @@ body.notifications-open .topbar {
 .topbar-left {
     display: flex;
     align-items: center;
+    transition: transform 0.3s ease;
+}
+
+body.registration-open .topbar-left {
+    transform: translateX(var(--notification-width));
 }
 
 .topbar-title,
@@ -82,6 +87,7 @@ body.notifications-open .topbar {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 /* Dropdown Styles */
@@ -572,6 +578,45 @@ body.notifications-open .topbar {
     transform: translateX(0);
 }
 
+.registration-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--notification-width);
+    height: 100vh;
+    background-color: var(--bg-color);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 8px 0 20px var(--shadow-soft);
+    transform: translateX(-102%);
+    transition: transform 0.3s ease;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.registration-panel.open {
+    transform: translateX(0);
+}
+
+.registration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--panel-bg);
+}
+
+.registration-header h2 {
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.registration-form {
+    padding: 1.25rem;
+}
+
 .notification-header {
     display: flex;
     justify-content: space-between;
@@ -730,11 +775,29 @@ body.notifications-open .topbar {
         width: 100%;
     }
 
+    .topbar-right .dropdown {
+        margin-left: auto;
+    }
+
+    .dropdown-content {
+        min-width: min(200px, calc(100vw - 2rem));
+        max-width: calc(100vw - 2rem);
+    }
+
+    .dropdown-content a {
+        overflow-wrap: anywhere;
+    }
+
     body.notifications-open .topbar {
         width: 0;
         overflow: hidden;
         padding-left: 0;
         padding-right: 0;
+    }
+
+    body.registration-open .topbar-left {
+        transform: translateX(0);
+        opacity: 0;
     }
 }
 

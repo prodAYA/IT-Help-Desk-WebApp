@@ -16,13 +16,49 @@
                 <button class="dropdown-btn" type="button">☰ Options</button>
                 <div class="dropdown-content">
                     <a href="#" id="darkmode-toggle">🌙 Enable Dark Mode</a>
+                    <a href="#" id="create-user-link">👤 Create New User</a>
+                    <a href="#" id="create-admin-link">🛡️ Create New Admin</a>
                     <a href="admin-login.html">↩️ Logout</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <script src="fake-data.js"></script>
+    <aside class="registration-panel" id="registration-panel" aria-label="Registration panel">
+        <div class="registration-header">
+            <h2 id="registration-title">Create New User</h2>
+            <button class="close-btn" id="close-registration" type="button" aria-label="Close registration panel">×</button>
+        </div>
+
+        <form id="registration-form" class="registration-form">
+            <div id="user-registration-fields">
+                <div class="form-group">
+                    <label for="user-name">User Name</label>
+                    <input type="text" id="user-name" name="user-name" placeholder="Enter user name">
+                </div>
+
+                <div class="form-group">
+                    <label for="employee-code">Employee Code</label>
+                    <input type="text" id="employee-code" name="employee-code" placeholder="Enter employee code">
+                </div>
+            </div>
+
+            <div id="admin-registration-fields" hidden>
+                <div class="form-group">
+                    <label for="admin-code">Admin Code</label>
+                    <input type="text" id="admin-code" name="admin-code" placeholder="Enter admin code">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="registration-password">Password</label>
+                <input type="password" id="registration-password" name="registration-password" placeholder="Enter password">
+            </div>
+
+            <button type="submit" class="login-btn">Create</button>
+        </form>
+    </aside>
+
     <script src="script.js"></script>
 </body>
 </html>
