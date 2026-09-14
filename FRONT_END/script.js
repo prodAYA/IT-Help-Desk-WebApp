@@ -38,14 +38,6 @@ function setupDropdown() {
         });
     });
 
-    document.querySelectorAll('.dropdown-content a').forEach(function(link) {
-        link.addEventListener('click', function() {
-            document.querySelectorAll('.dropdown-content').forEach(function(menu) {
-                menu.classList.remove('active');
-            });
-        });
-    });
-
     document.addEventListener('click', function() {
         document.querySelectorAll('.dropdown-content.active').forEach(function(menu) {
             menu.classList.remove('active');
