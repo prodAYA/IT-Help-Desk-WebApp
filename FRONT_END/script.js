@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupNotificationPanel();
     setupTicketForm();
     setupRegistrationPanel();
+    setupAdminTicketSection();
+    setupBackButton();
 });
 
 function applyStoredDarkMode() {
@@ -35,6 +37,14 @@ function setupDropdown() {
             });
 
             menu.classList.toggle('active');
+        });
+    });
+
+    document.querySelectorAll('.dropdown-content a').forEach(function(link) {
+        link.addEventListener('click', function() {
+            document.querySelectorAll('.dropdown-content').forEach(function(menu) {
+                menu.classList.remove('active');
+            });
         });
     });
 
@@ -152,5 +162,53 @@ function setupRegistrationPanel() {
 
     form.addEventListener('submit', function(event) {
         event.preventDefault();
+    });
+}
+
+function setupAdminTicketSection() {
+    const ticketList = document.getElementById('admin-ticket-list');
+    const viewOptions = document.querySelectorAll('[data-admin-ticket-status]');
+
+    if (!ticketList || !viewOptions.length) {
+        return;
+    }
+
+    viewOptions.forEach(function(option) {
+        option.addEventListener('click', function() {
+            viewOptions.forEach(function(button) {
+                button.classList.remove('active');
+            });
+
+            option.classList.add('active');
+            ticketList.dataset.activeStatus = option.dataset.adminTicketStatus;
+        });
+    });
+
+    ticketList.addEventListener('click', function(event) {
+        const selection = event.target.closest('.admin-ticket-select');
+        if (selection) {
+            const ticketItem = selection.closest('.admin-ticket-item');
+            if (ticketItem) {
+                ticketItem.classList.toggle('selected', selection.checked);
+            }
+            return;
+        }
+
+        const ticketItem = event.target.closest('.admin-ticket-item');
+        if (!ticketItem) {
+            return;
+        }
+
+        window.location.href = 'ticket-view.html';
+    });
+}
+
+function setupBackButton() {
+    const backButton = document.getElementById('back-to-tickets');
+    if (!backButton) {
+        return;
+    }
+    backButton.addEventListener('click', function() {
+        window.history.back();
     });
 }

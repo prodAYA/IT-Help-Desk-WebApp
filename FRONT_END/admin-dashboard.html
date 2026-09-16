@@ -59,6 +59,45 @@
         </form>
     </aside>
 
+    <main class="admin-dashboard-page">
+        <section class="ticket-list-section admin-ticket-section">
+            <div class="ticket-list-card">
+                <div class="ticket-list-heading">
+                    <h2>All Tickets</h2>
+                    <div class="ticket-view-switch" role="group" aria-label="Ticket status filter">
+                        <button class="ticket-view-option active" type="button" data-admin-ticket-status="Live">Live Tickets</button>
+                        <button class="ticket-view-option" type="button" data-admin-ticket-status="Resolved">Resolved Tickets</button>
+                    </div>
+                </div>
+
+                <div class="admin-ticket-toolbar">
+                    <button class="admin-ticket-operation" type="button">Delete Ticket(s)</button>
+                    <button class="admin-ticket-operation" type="button">Change Status</button>
+                </div>
+
+                <div id="admin-ticket-list" class="ticket-list admin-ticket-list" data-active-status="Live">
+                    <div class="admin-ticket-item" data-ticket-id="1">
+                    <input type="checkbox" class="admin-ticket-select">
+                    <span>Laptop won't turn on</span>
+                    <span>Hardware</span>
+                    </div>
+
+                    <div class="admin-ticket-item" data-ticket-id="2">
+                        <input type="checkbox" class="admin-ticket-select">
+                        <span>Can't access shared drive</span>
+                        <span>Network</span>
+                    </div>
+
+                    <div class="admin-ticket-item" data-ticket-id="3">
+                        <input type="checkbox" class="admin-ticket-select">
+                        <span>Outlook keeps crashing</span>
+                        <span>Email / Collaboration</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
     <script src="script.js"></script>
 </body>
 </html>
