@@ -160,8 +160,48 @@ function setupRegistrationPanel() {
         closeButton.addEventListener('click', closePanel);
     }
 
-    form.addEventListener('submit', function(event) {
+    form.addEventListener('submit', async function(event) {
+
         event.preventDefault();
+
+        const isAdmin = !adminFields.hidden;
+
+        const payload = isAdmin
+            ? {
+                admin_code: document.getElementById('admin-code').value,
+                password: document.getElementById('registration-password').value
+            }
+            : {
+                name: document.getElementById('user-name').value,
+                employee_code: document.getElementById('employee-code').value,
+                password: document.getElementById('registration-password').value
+            };
+
+        const endpoint = isAdmin ? 'http://127.0.0.1:8000/admins' : 'http://127.0.0.1:8000/users';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert('Error: ' + (errorData.detail || 'Something went wrong'));
+            return;
+        }
+
+        alert('Created successfully!');
+        closePanel();
+        form.reset();
+
+        }
+        
+        catch (error) {
+        alert('Could not reach the server.');
+        }
+        
     });
 }
 
