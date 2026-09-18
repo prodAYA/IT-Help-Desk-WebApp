@@ -187,9 +187,11 @@ function setupRegistrationPanel() {
             });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            alert('Error: ' + (errorData.detail || 'Something went wrong'));
-            return;
+            let errorData = await response.json();
+             
+                alert('Error: ' + (errorData.detail || 'Something went wrong'));
+                return;
+                
         }
 
         alert('Created successfully!');
