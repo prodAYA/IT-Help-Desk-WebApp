@@ -586,6 +586,12 @@ body.registration-open .topbar-left {
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(107, 114, 128, 0.1);
 }
 
+.validation-error {
+    margin-top: 0.35rem;
+    color: rgb(255, 0, 0);
+    font-size: 0.75rem;
+}
+
 /* Button Styles */
 .login-btn {
     width: 100%;

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
 
-    employee_code VARCHAR(7) PRIMARY KEY,
-    name VARCHAR(30) NOT NULL,
+    employee_code VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS admins (
 
-	admin_code VARCHAR(7) PRIMARY KEY,
+	admin_code VARCHAR(20) PRIMARY KEY,
 	password_hash VARCHAR(255) NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 
@@ -89,5 +89,4 @@ CREATE TABLE IF NOT EXISTS comments (
 	)
 
 );
-
 

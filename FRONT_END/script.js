@@ -129,10 +129,17 @@ function setupRegistrationPanel() {
     }
 
     function openPanel(mode) {
+        form.reset();
         const isAdmin = mode === 'admin';
         title.textContent = isAdmin ? 'Create New Admin' : 'Create New User';
         userFields.hidden = isAdmin;
         adminFields.hidden = !isAdmin;
+        userFields.querySelectorAll('input').forEach(function(input) {
+            input.required = !isAdmin;
+        });
+        adminFields.querySelectorAll('input').forEach(function(input) {
+            input.required = isAdmin;
+        });
         panel.classList.add('open');
         document.body.classList.add('registration-open');
     }
@@ -140,6 +147,7 @@ function setupRegistrationPanel() {
     function closePanel() {
         panel.classList.remove('open');
         document.body.classList.remove('registration-open');
+        form.reset();
     }
 
     if (userLink) {
@@ -165,16 +173,55 @@ function setupRegistrationPanel() {
         event.preventDefault();
 
         const isAdmin = !adminFields.hidden;
+        const registrationPassword = document.getElementById('registration-password').value;
+        const validationErrors = {
+            adminCode: document.getElementById('admin-code-error'),
+            userName: document.getElementById('user-name-error'),
+            employeeCode: document.getElementById('employee-code-error'),
+            password: document.getElementById('registration-password-error')
+        };
+
+        Object.values(validationErrors).forEach(function(errorElement) {
+            errorElement.hidden = true;
+        });
+
+        if(isAdmin){
+            const adminCode = document.getElementById('admin-code').value;
+            if (adminCode.length < 3 || adminCode.length > 20) {
+                validationErrors.adminCode.hidden = false;
+                return;
+            }
+
+        }
+
+        else if (!isAdmin) {
+            const userName = document.getElementById('user-name').value;
+            if (userName.length > 100) {
+                validationErrors.userName.hidden = false;
+                return;
+            }
+            const employeeCode = document.getElementById('employee-code').value;
+            if (employeeCode.length < 3 || employeeCode.length > 20) {
+                validationErrors.employeeCode.hidden = false;
+                return;
+            }
+
+        }
+
+        if (registrationPassword.length < 8 || registrationPassword.length > 100) {
+            validationErrors.password.hidden = false;
+            return;
+        }
 
         const payload = isAdmin
             ? {
-                admin_code: document.getElementById('admin-code').value,
-                password: document.getElementById('registration-password').value
+                admin_code: adminCode,
+                password: registrationPassword
             }
             : {
-                name: document.getElementById('user-name').value,
-                employee_code: document.getElementById('employee-code').value,
-                password: document.getElementById('registration-password').value
+                name: userName,
+                employee_code: employeeCode,
+                password: registrationPassword
             };
 
         const endpoint = isAdmin ? 'http://127.0.0.1:8000/admins' : 'http://127.0.0.1:8000/users';

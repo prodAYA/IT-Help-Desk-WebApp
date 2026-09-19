@@ -34,25 +34,29 @@
             <div id="user-registration-fields">
                 <div class="form-group">
                     <label for="user-name">User Name</label>
-                    <input type="text" id="user-name" name="user-name" placeholder="Enter user name">
+                    <input type="text" id="user-name" name="user-name" placeholder="Max 100 Characters" required>
+                    <p class="validation-error" id="user-name-error" hidden>User Name is too long!</p>
                 </div>
 
                 <div class="form-group">
                     <label for="employee-code">Employee Code</label>
-                    <input type="text" id="employee-code" name="employee-code" placeholder="Enter employee code">
+                    <input type="text" id="employee-code" name="employee-code" placeholder="3-20 Characters" required>
+                    <p class="validation-error" id="employee-code-error" hidden>Employee Code must be 3-20 characters!</p>
                 </div>
             </div>
 
             <div id="admin-registration-fields" hidden>
                 <div class="form-group">
                     <label for="admin-code">Admin Code</label>
-                    <input type="text" id="admin-code" name="admin-code" placeholder="Enter admin code">
+                    <input type="text" id="admin-code" name="admin-code" placeholder="3-20 Characters" required>
+                    <p class="validation-error" id="admin-code-error" hidden>Admin Code must be 3-20 characters!</p>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="registration-password">Password</label>
-                <input type="password" id="registration-password" name="registration-password" placeholder="Enter password">
+                <input type="password" id="registration-password" name="registration-password" placeholder="Min 8 Characters" required>
+                <p class="validation-error" id="registration-password-error" hidden>Password must be 8-100 characters!</p>
             </div>
 
             <button type="submit" class="login-btn">Create</button>
