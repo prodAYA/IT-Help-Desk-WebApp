@@ -48,6 +48,12 @@ class UserCreate(BaseModel):
     employee_code: str = Field(min_length=3, max_length=20)
     password: str = Field(min_length=8, max_length=100)
 
+class UserLogin(BaseModel):
+    employee_code: str
+    password: str
+
+
+#Create a new admin endpoint
 
 @app.post("/admins")
 async def create_admin(admin: AdminCreate):
@@ -86,6 +92,8 @@ async def create_admin(admin: AdminCreate):
         raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")
 
 
+#Create a new user endpoint
+
 @app.post("/users")
 async def create_user(user: UserCreate):
 
@@ -121,3 +129,43 @@ async def create_user(user: UserCreate):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something went wrong while creating the user")
+
+
+#Check User login credential endpoint
+
+@app.post("/user_login")
+async def user_login(user_login: UserLogin):
+    try:
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+
+        async with conn:
+            async with conn.cursor() as cur:
+
+                await cur.execute(
+                    "SELECT password_hash FROM users WHERE employee_code = %s",
+                    (user_login.employee_code,)
+                )
+
+                result = await cur.fetchone()
+
+                if result is None:
+                    raise HTTPException(status_code=401, detail="Invalid employee code or password 1")
+
+                stored_password_hash = result[0]
+
+                if not bcrypt.checkpw(user_login.password.encode(), stored_password_hash.encode()):
+                    raise HTTPException(status_code=401, detail="Invalid employee code or password 2")
+
+        return {"message": "Login successful"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong during login")

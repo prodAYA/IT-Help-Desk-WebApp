@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     applyStoredDarkMode();
     setupDropdown();
+    Login();
     setupNotificationPanel();
     setupTicketForm();
     setupRegistrationPanel();
@@ -23,6 +24,75 @@ function updateDarkModeButtonText() {
             : '🌙 Enable Dark Mode';
     });
 }
+
+function Login() {
+
+    const userLogin = document.getElementById('login-form');
+    const adminLogin = document.getElementById('admin-login-form');
+    const loginForm = userLogin || adminLogin;
+
+    if (!loginForm) {
+        return;
+    }
+
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        let payload;
+        let endpoint;
+
+        if (userLogin) {
+
+        const employeeCode = document.getElementById('employee-code').value;
+        const password = document.getElementById('password').value;
+
+        payload = {
+            employee_code: employeeCode,
+            password: password
+        };
+
+        endpoint = 'http://127.0.0.1:8000/user_login';
+
+        }
+
+        else if (adminLogin) {
+
+        const adminCode = document.getElementById('admin-code').value;
+        const password = document.getElementById('admin-password').value;
+
+        payload = {
+            admin_code: adminCode,
+            password: password
+        };
+
+        endpoint = 'http://127.0.0.1:8000/admin_login';
+
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+        if (!response.ok) {
+            let errorData = await response.json();
+             
+                alert('Error: ' + (errorData.detail || 'Something went wrong'));
+                return;
+                
+        }
+
+        window.location.href = userLogin ? 'user-dashboard.html' : 'admin-dashboard.html';
+        alert('Login successful! Redirecting...');
+        }
+        
+        catch (error) {
+        alert('Could not reach the server.');
+        }
+    })
+}    
 
 function setupDropdown() {
     document.querySelectorAll('.dropdown-btn').forEach(function(button) {
@@ -68,6 +138,7 @@ function setupDropdown() {
 }
 
 function setupNotificationPanel() {
+
     const notificationButton = document.getElementById('notification-btn');
     const notificationPanel = document.getElementById('notification-panel');
     const closeButton = document.getElementById('close-notifications');
@@ -174,6 +245,7 @@ function setupRegistrationPanel() {
 
         const isAdmin = !adminFields.hidden;
         const registrationPassword = document.getElementById('registration-password').value;
+        let adminCode, userName, employeeCode;
         const validationErrors = {
             adminCode: document.getElementById('admin-code-error'),
             userName: document.getElementById('user-name-error'),
@@ -186,7 +258,7 @@ function setupRegistrationPanel() {
         });
 
         if(isAdmin){
-            const adminCode = document.getElementById('admin-code').value;
+            adminCode = document.getElementById('admin-code').value;
             if (adminCode.length < 3 || adminCode.length > 20) {
                 validationErrors.adminCode.hidden = false;
                 return;
@@ -195,12 +267,12 @@ function setupRegistrationPanel() {
         }
 
         else if (!isAdmin) {
-            const userName = document.getElementById('user-name').value;
+            userName = document.getElementById('user-name').value;
             if (userName.length > 100) {
                 validationErrors.userName.hidden = false;
                 return;
             }
-            const employeeCode = document.getElementById('employee-code').value;
+            employeeCode = document.getElementById('employee-code').value;
             if (employeeCode.length < 3 || employeeCode.length > 20) {
                 validationErrors.employeeCode.hidden = false;
                 return;
