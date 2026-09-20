@@ -56,7 +56,10 @@
             <div class="form-group">
                 <label for="registration-password">Password</label>
                 <input type="password" id="registration-password" name="registration-password" placeholder="Min 8 Characters" required>
+                <label for="registration-password-confirm">Confirm Password</label>
+                <input type="password" id="registration-password-confirm" name="registration-password-confirm" placeholder="Confirm Password" required>
                 <p class="validation-error" id="registration-password-error" hidden>Password must be 8-100 characters!</p>
+                <p class="validation-error" id="registration-password-confirm-error" hidden>Passwords do not match!</p>
             </div>
 
             <button type="submit" class="login-btn">Create</button>

@@ -245,12 +245,14 @@ function setupRegistrationPanel() {
 
         const isAdmin = !adminFields.hidden;
         const registrationPassword = document.getElementById('registration-password').value;
+        const registrationPasswordConfirm = document.getElementById('registration-password-confirm').value;
         let adminCode, userName, employeeCode;
         const validationErrors = {
             adminCode: document.getElementById('admin-code-error'),
             userName: document.getElementById('user-name-error'),
             employeeCode: document.getElementById('employee-code-error'),
-            password: document.getElementById('registration-password-error')
+            password: document.getElementById('registration-password-error'),
+            passwordConfirm: document.getElementById('registration-password-confirm-error')
         };
 
         Object.values(validationErrors).forEach(function(errorElement) {
@@ -284,16 +286,22 @@ function setupRegistrationPanel() {
             validationErrors.password.hidden = false;
             return;
         }
-
+        else if (registrationPassword !== registrationPasswordConfirm) {
+            validationErrors.passwordConfirm.hidden = false;
+            return;
+        }
+        
         const payload = isAdmin
             ? {
                 admin_code: adminCode,
-                password: registrationPassword
+                password: registrationPassword,
+                password_confirm: registrationPasswordConfirm
             }
             : {
                 name: userName,
                 employee_code: employeeCode,
-                password: registrationPassword
+                password: registrationPassword,
+                password_confirm: registrationPasswordConfirm
             };
 
         const endpoint = isAdmin ? 'http://127.0.0.1:8000/admins' : 'http://127.0.0.1:8000/users';
