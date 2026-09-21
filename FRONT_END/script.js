@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     applyStoredDarkMode();
     setupDropdown();
     Login();
+    Logout();
     setupNotificationPanel();
     setupTicketForm();
     setupRegistrationPanel();
@@ -84,6 +85,8 @@ function Login() {
                 
         }
 
+        authData = await response.json();
+        localStorage.setItem('authData', JSON.stringify(authData));
         window.location.href = userLogin ? 'user-dashboard.html' : 'admin-dashboard.html';
         alert('Login successful! Redirecting...');
         }
@@ -93,6 +96,37 @@ function Login() {
         }
     })
 }    
+
+function Logout() {
+
+    const logOut = document.getElementById('logout-btn');
+
+    if (!logOut) {
+        return;
+    }
+
+    logOut.addEventListener('click', async function(event) {
+        event.preventDefault();
+        
+        const authData = JSON.parse(localStorage.getItem('authData'));
+
+        try {
+            await fetch('http://127.0.0.1:8000/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ "refresh_token": authData.refresh_token })
+            });
+        }
+        catch (error) {
+            //no need to alert the user here, as we want to log them out regardless of server response
+        }
+        
+        
+        localStorage.removeItem('authData');
+        window.location.href = 'login.html';
+    });
+
+}
 
 function setupDropdown() {
     document.querySelectorAll('.dropdown-btn').forEach(function(button) {

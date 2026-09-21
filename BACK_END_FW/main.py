@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError, model_validator
+from datetime import datetime, timedelta, timezone
+import jwt
+import secrets
 import psycopg
 import bcrypt
 import os
@@ -22,6 +25,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+#JWT TOKEN HELPERS
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm="HS256")
+    return encoded_jwt
+
+async def create_refresh_token(conn, employee_code=None, admin_code=None):
+    token = secrets.token_hex(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    async with conn.cursor() as cur:
+
+        await cur.execute(
+            "DELETE FROM refresh_tokens WHERE employee_code = %s OR admin_code = %s",
+            (employee_code, admin_code)
+        )
+        await cur.execute(
+            "INSERT INTO refresh_tokens (employee_code, admin_code, token, expires_at) VALUES (%s, %s, %s, %s)",
+            (employee_code, admin_code, token, expires_at)
+        )
+    await conn.commit()
+
+    return token
+
+#Custom Exception Handler for Validation Errors
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -69,6 +102,9 @@ class UserLogin(BaseModel):
 class AdminLogin(BaseModel):
     admin_code: str = Field(...)
     password: str = Field(...)
+
+class refreshToken(BaseModel):
+    refresh_token: str = Field(...)
 
 
 #Create a new admin endpoint
@@ -180,7 +216,10 @@ async def user_login(user_login: UserLogin):
                 if not bcrypt.checkpw(user_login.password.encode(), stored_password_hash.encode()):
                     raise HTTPException(status_code=401, detail="Invalid employee code or password 2")
 
-        return {"message": "Login successful"}
+            access_token = create_access_token({"employee_code": user_login.employee_code, "role": "USER"})
+            refresh_token = await create_refresh_token(conn, employee_code=user_login.employee_code)
+
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "Bearer"}
 
     except HTTPException:
         raise
@@ -219,11 +258,39 @@ async def admin_login(admin_login: AdminLogin):
 
                 if not bcrypt.checkpw(admin_login.password.encode(), stored_password_hash.encode()):
                     raise HTTPException(status_code=401, detail="Invalid admin code or password 2")
+                
+            access_token = create_access_token({"admin_code": admin_login.admin_code, "role": "ADMIN"})
+            refresh_token = await create_refresh_token(conn, admin_code = admin_login.admin_code)
 
-        return {"message": "Login successful"}
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "Bearer"}
 
     except HTTPException:
         raise
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something went wrong during login")
+
+# Logout/Automatic Token Clear Endpoint
+@app.post("/logout")
+async def logout(logout_request: refreshToken):
+    try:
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+
+        async with conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM refresh_tokens WHERE token = %s",
+                    (logout_request.refresh_token,)
+                )
+            await conn.commit()
+
+        return {"message": "Logged out successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong during logout")

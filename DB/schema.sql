@@ -89,3 +89,27 @@ CREATE TABLE IF NOT EXISTS comments (
 	)
 
 );
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_code VARCHAR(7) REFERENCES users(employee_code) ON DELETE CASCADE,
+    admin_code VARCHAR(7) REFERENCES admins(admin_code) ON DELETE CASCADE,
+    token VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+    CONSTRAINT one_owner_only CHECK (
+    
+		(employee_code IS NOT NULL AND admin_code IS NULL)
+        OR
+        (employee_code IS NULL AND admin_code IS NOT NULL)
+    
+	)
+
+);
+
+TRUNCATE TABLE admins RESTART IDENTITY CASCADE;
+
+SELECT * FROM admins;
+
+SELECT * FROM refresh_tokens;
