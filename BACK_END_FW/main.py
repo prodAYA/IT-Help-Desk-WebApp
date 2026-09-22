@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -25,6 +25,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+#Custom Exception Handler for Validation Errors
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+
+    error = exc.errors()[0] 
+    field_name = error["loc"][-1]
+    error_type = error["type"]
+
+    if error_type == "string_too_short":
+        message = f"{field_name} is too short"
+    elif error_type == "string_too_long":
+        message = f"{field_name} is too long"
+    else:
+        message = "Invalid Input(s)"
+
+    return JSONResponse(status_code=400, content={"detail": message})
+
 
 #JWT TOKEN HELPERS
 
@@ -54,23 +73,75 @@ async def create_refresh_token(conn, employee_code=None, admin_code=None):
 
     return token
 
-#Custom Exception Handler for Validation Errors
+def verify_access_token(token: str):
+    try:
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=403, detail="Invalid token")
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
 
-    error = exc.errors()[0] 
-    field_name = error["loc"][-1]
-    error_type = error["type"]
+class RefreshToken(BaseModel):
+    refresh_token: str = Field(...)
 
-    if error_type == "string_too_short":
-        message = f"{field_name} is too short"
-    elif error_type == "string_too_long":
-        message = f"{field_name} is too long"
-    else:
-        message = "Invalid Input(s)"
+# Refresh Token Verification/Rotation Endpoint
 
-    return JSONResponse(status_code=400, content={"detail": message})
+@app.post("/refresh_token")
+async def verify_refresh_token(token: RefreshToken):
+
+
+    try:
+
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+        async with conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT employee_code, admin_code, expires_at FROM refresh_tokens WHERE token = %s",
+                    (token.refresh_token,)
+                )
+                result = await cur.fetchone()
+
+            if result is None:
+                raise HTTPException(status_code=403, detail="Invalid refresh token")
+
+            employee_code, admin_code, expires_at = result
+
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=403, detail="Refresh token has expired")
+
+   
+        role = "USER" if employee_code else "ADMIN"
+        emp_or_adm_code_key = "employee_code" if employee_code else "admin_code"
+        emp_or_adm_code_value = employee_code if employee_code else admin_code
+
+        new_refresh_token = await create_refresh_token(conn, employee_code=employee_code, admin_code=admin_code)
+        new_access_token = create_access_token({emp_or_adm_code_key: emp_or_adm_code_value, "role": role})
+
+        return { "access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "Bearer" }
+
+    except HTTPException:
+            raise
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong while verifying authorization")
+    
+
+# Token-Based User-Identifier
+
+def get_current_user(authorization: str = Header(...)):
+    token = authorization.replace("Bearer ", "")
+    payload = verify_access_token(token)
+    return payload
+
+# Base Model classes
 
 class AdminCreate(BaseModel):
     admin_code: str = Field(min_length=3, max_length=20)
@@ -102,9 +173,6 @@ class UserLogin(BaseModel):
 class AdminLogin(BaseModel):
     admin_code: str = Field(...)
     password: str = Field(...)
-
-class refreshToken(BaseModel):
-    refresh_token: str = Field(...)
 
 
 #Create a new admin endpoint
@@ -272,7 +340,7 @@ async def admin_login(admin_login: AdminLogin):
 
 # Logout/Automatic Token Clear Endpoint
 @app.post("/logout")
-async def logout(logout_request: refreshToken):
+async def logout(clear_token: RefreshToken):
     try:
         conn = await psycopg.AsyncConnection.connect(
             dbname=os.getenv("DB_NAME"),
@@ -286,7 +354,7 @@ async def logout(logout_request: refreshToken):
             async with conn.cursor() as cur:
                 await cur.execute(
                     "DELETE FROM refresh_tokens WHERE token = %s",
-                    (logout_request.refresh_token,)
+                    (clear_token.refresh_token,)
                 )
             await conn.commit()
 
