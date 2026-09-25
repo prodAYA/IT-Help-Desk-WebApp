@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Header, Depends
+from fastapi import FastAPI, HTTPException, Request, Header, Depends, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -10,12 +10,19 @@ import psycopg
 import bcrypt
 import os
 from dotenv import load_dotenv
+import cloudinary, cloudinary.uploader
 import asyncio
 
 if os.name == "nt":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 load_dotenv()
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 app = FastAPI()
 
@@ -49,7 +56,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    expire = datetime.now(timezone.utc) + timedelta(seconds=1)
     to_encode.update({"exp": expire})
 
     encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm="HS256")
@@ -78,7 +85,7 @@ def verify_access_token(token: str):
         payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
+        raise HTTPException(status_code=401, detail="Access Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=403, detail="Invalid token")
 
@@ -117,13 +124,13 @@ async def verify_refresh_token(token: RefreshToken):
             if expires_at < datetime.now(timezone.utc):
                 raise HTTPException(status_code=403, detail="Refresh token has expired")
 
-   
-        role = "USER" if employee_code else "ADMIN"
-        emp_or_adm_code_key = "employee_code" if employee_code else "admin_code"
-        emp_or_adm_code_value = employee_code if employee_code else admin_code
+    
+            role = "USER" if employee_code else "ADMIN"
+            emp_or_adm_code_key = "employee_code" if employee_code else "admin_code"
+            emp_or_adm_code_value = employee_code if employee_code else admin_code
 
-        new_refresh_token = await create_refresh_token(conn, employee_code=employee_code, admin_code=admin_code)
-        new_access_token = create_access_token({emp_or_adm_code_key: emp_or_adm_code_value, "role": role})
+            new_refresh_token = await create_refresh_token(conn, employee_code=employee_code, admin_code=admin_code)
+            new_access_token = create_access_token({emp_or_adm_code_key: emp_or_adm_code_value, "role": role})
 
         return { "access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "Bearer" }
 
@@ -131,6 +138,7 @@ async def verify_refresh_token(token: RefreshToken):
             raise
     
     except Exception as e:
+        print(repr(e))
         raise HTTPException(status_code=500, detail="Something went wrong while verifying authorization")
     
 
@@ -173,6 +181,23 @@ class UserLogin(BaseModel):
 class AdminLogin(BaseModel):
     admin_code: str = Field(...)
     password: str = Field(...)
+
+class Notifications(BaseModel):
+    employee_code: str = Field(..., min_length=3, max_length=20)
+    message: str = Field(..., max_length=255)
+    ticket_id: int = Field(...)
+
+
+# Notificatiion Generation helper
+
+async def generate_notification(cur, Notification: Notifications):
+
+    await cur.execute(
+        "INSERT INTO notifications (employee_code, ticket_id, message) VALUES (%s, %s, %s)",
+        (Notification.employee_code, Notification.ticket_id, Notification.message)
+    )
+
+    return
 
 
 #Create a new admin endpoint
@@ -284,10 +309,22 @@ async def user_login(user_login: UserLogin):
                 if not bcrypt.checkpw(user_login.password.encode(), stored_password_hash.encode()):
                     raise HTTPException(status_code=401, detail="Invalid employee code or password 2")
 
+                await cur.execute(
+                    "SELECT name FROM users WHERE employee_code = %s",
+                    (user_login.employee_code,)
+                )
+
+                user_name = await cur.fetchone()
+
             access_token = create_access_token({"employee_code": user_login.employee_code, "role": "USER"})
             refresh_token = await create_refresh_token(conn, employee_code=user_login.employee_code)
 
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "Bearer"}
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "Bearer",
+            "user_name": user_name[0]
+        }
 
     except HTTPException:
         raise
@@ -362,3 +399,71 @@ async def logout(clear_token: RefreshToken):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something went wrong during logout")
+
+
+
+@app.post("/create_ticket")
+async def create_ticket(category: str = Form(...), description: str = Form(..., min_length = 1, max_length = 650), attachment: UploadFile | None = File(None), current_user: dict = Depends(get_current_user)):
+
+    if current_user["role"] != "USER":
+        raise HTTPException(status_code=403, detail="Only authenticated employees may create tickets")
+
+    try:
+
+        attachment_path = None
+
+        if attachment:
+            content = await attachment.read()
+            upload_file = cloudinary.uploader.upload(content, folder="ticket_attachment", format="jpg", quality="auto", fetch_format="auto")
+            attachment_path = upload_file["secure_url"]
+
+        conn = await psycopg.AsyncConnection.connect(
+                    dbname=os.getenv("DB_NAME"),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT")
+                )
+        
+        async with conn:
+            async with conn.cursor() as cur:
+
+                await cur.execute(
+                    "SELECT status_id FROM statuses WHERE status_name = %s",
+                    ("Live",)
+                )
+                status_id = (await cur.fetchone())[0]
+
+                await cur.execute(
+                    "SELECT category_id from categories WHERE category_name = %s",
+                    (category,)
+                )
+
+                category_result = await cur.fetchone()
+
+                if category_result == None:
+                    raise HTTPException(status_code=400, detail="Invalid category")
+
+                category_id = category_result[0]
+
+                await cur.execute(
+                    "INSERT INTO tickets (employee_code, category_id, status_id, description, attachment_path) VALUES (%s, %s, %s, %s, %s) RETURNING ticket_id",
+                    (current_user["employee_code"], category_id, status_id, description, attachment_path )
+                )
+
+                ticket_id = (await cur.fetchone())[0]
+                notification_message = f"Your ticket has been generated with ID: #{ticket_id} and will be reviewed by an administrator soon."
+                notification = Notifications(employee_code=current_user["employee_code"], ticket_id=ticket_id, message=notification_message)
+
+                await generate_notification(cur, notification)
+
+            await conn.commit()
+
+
+        return {"message": "Ticket Created Succesfully"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong while trying to create the ticket")

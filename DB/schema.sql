@@ -108,8 +108,14 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 
 );
 
-TRUNCATE TABLE admins RESTART IDENTITY CASCADE;
+TRUNCATE TABLE RESTART IDENTITY CASCADE;
 
 SELECT * FROM admins;
 
+SELECT * FROM users;
+
 SELECT * FROM refresh_tokens;
+
+SELECT * FROM tickets;
+
+SELECT * FROM notifications;

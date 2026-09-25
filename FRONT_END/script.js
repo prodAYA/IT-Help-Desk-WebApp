@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     applyStoredDarkMode();
     setupDropdown();
     Login();
+    showUserName();
     Logout();
     setupNotificationPanel();
     setupTicketForm();
@@ -25,6 +26,102 @@ function updateDarkModeButtonText() {
             : '🌙 Enable Dark Mode';
     });
 }
+
+function showUserName() {
+
+    const greetTopBar = document.getElementById('welcome-name');
+    const userName = localStorage.getItem('userName');
+
+    if (greetTopBar) {
+        greetTopBar.innerText = `Hello, ${userName}`; 
+    }
+}
+
+async function forceLogout() {
+
+    const authData = JSON.parse(localStorage.getItem('authData'));
+
+    try {
+        await fetch('http://127.0.0.1:8000/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ "refresh_token": authData.refresh_token })
+        });
+    }
+    catch (error) {
+        //no need to alert the user here, as we want to log them out regardless of server response
+    }
+        
+        localStorage.removeItem('authData');
+        window.location.href = 'login.html';
+}
+
+
+/*TOKEN CYCLE HANDLERS*/
+
+async function requestNewTokens() {
+
+    const authData = JSON.parse(localStorage.getItem('authData'));
+    const endpoint = 'http://127.0.0.1:8000/refresh_token';
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({"refresh_token": authData.refresh_token})
+        });
+
+        if (!response.ok) {
+            let errorData = await response.json();
+            alert('Error: ' + (errorData.detail || 'Something went wrong'));
+            await forceLogout();
+            return false;
+        }
+
+        const newAuthData = await response.json();
+        localStorage.setItem('authData', JSON.stringify(newAuthData));
+        return true;
+    }
+    catch (error) {
+        alert('Could not reach the server.');
+        return false;
+    }
+}
+
+
+async function fetchWithAuth(endpoint, options = {}) {
+    const authData = JSON.parse(localStorage.getItem('authData'));
+
+    options.headers = {
+        ...options.headers,
+        'Authorization': authData.token_type + ' ' + authData.access_token
+    };
+
+    let response = await fetch(endpoint, options);
+
+    if (response.status === 401) {
+        const refreshed = await requestNewTokens();
+        if (!refreshed) {
+            return response;
+        }
+
+        const newAuthData = JSON.parse(localStorage.getItem('authData'));
+        options.headers['Authorization'] = newAuthData.token_type + ' ' + newAuthData.access_token;
+        response = await fetch(endpoint, options);
+
+    }
+
+    if (response.status === 403) {
+        await forceLogout();
+        return response;
+    }
+
+
+    return response;
+}
+
+/*-------------*/
+
 
 function Login() {
 
@@ -85,8 +182,11 @@ function Login() {
                 
         }
 
-        authData = await response.json();
+        const authDataAndName = await response.json();
+        const authData = {'access_token': authDataAndName.access_token, 'refresh_token': authDataAndName.refresh_token, 'token_type': authDataAndName.token_type}
+        const currentUserName = authDataAndName.user_name;
         localStorage.setItem('authData', JSON.stringify(authData));
+        localStorage.setItem('userName', currentUserName);
         window.location.href = userLogin ? 'user-dashboard.html' : 'admin-dashboard.html';
         alert('Login successful! Redirecting...');
         }
@@ -108,22 +208,8 @@ function Logout() {
     logOut.addEventListener('click', async function(event) {
         event.preventDefault();
         
-        const authData = JSON.parse(localStorage.getItem('authData'));
+        await forceLogout();
 
-        try {
-            await fetch('http://127.0.0.1:8000/logout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ "refresh_token": authData.refresh_token })
-            });
-        }
-        catch (error) {
-            //no need to alert the user here, as we want to log them out regardless of server response
-        }
-        
-        
-        localStorage.removeItem('authData');
-        window.location.href = 'login.html';
     });
 
 }
@@ -202,6 +288,11 @@ function setupTicketForm() {
     const formWrapper = document.getElementById('ticket-form-wrapper');
     const descriptionField = document.getElementById('ticket-description');
     const characterCount = document.getElementById('ticket-char-count');
+    const form = document.getElementById('new-ticket-form')
+
+     if (!toggleButton || !formWrapper || !form) {
+        return;
+    }
 
     if (toggleButton && formWrapper) {
         toggleButton.addEventListener('click', function() {
@@ -217,6 +308,47 @@ function setupTicketForm() {
             characterCount.textContent = descriptionField.value.length;
         });
     }
+
+    form.addEventListener('submit', async function(event) {
+
+        event.preventDefault();
+
+        const category = document.getElementById('ticket-category').value;
+        const description = document.getElementById('ticket-description').value;
+        const attachmentInput = document.getElementById('ticket-attachment');
+
+        const formData = new FormData();
+        formData.append('category', category);
+        formData.append('description', description);
+
+        if (attachmentInput.files[0]) {
+            formData.append('attachment', attachmentInput.files[0]);
+        }
+
+        try {
+            
+            const response = await fetchWithAuth('http://127.0.0.1:8000/create_ticket', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert('Error: ' + (errorData.detail || 'Something went wrong'));
+            return;
+        }
+
+        alert('Ticket created successfully!');
+        form.reset();
+
+        }
+
+        catch (error) {
+        alert('Could not reach the server.');
+        }
+
+    });
+
 }
 
 function setupRegistrationPanel() {
