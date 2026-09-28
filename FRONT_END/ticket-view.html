@@ -22,12 +22,23 @@
         </div>
     </nav>
 
-    <main class="dashboard-page">
+    <main class="dashboard-page ticket-view-page">
         <section class="dashboard-card ticket-detail-card">
             <h1>Ticket Details</h1>
             <div id="ticket-details" class="ticket-details"></div>
             <button class="back-to-tickets" id="back-to-tickets">Back to Dashboard</button>
         </section>
+
+        <section class="comment-section">
+            <h3>Chat History</h3>
+            <div id="comment-list" class="comment-list"></div>
+
+            <form id="comment-form" class="comment-form">
+                <textarea id="comment-message" placeholder="Type a message..." required></textarea>
+                <button type="submit" class="login-btn">Send</button>
+            </form>
+        </section>
+
     </main>
 
     <script src="script.js"></script>

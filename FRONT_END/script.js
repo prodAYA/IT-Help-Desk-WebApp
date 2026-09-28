@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', function() {
     Logout();
     setupNotificationPanel();
     setupTicketForm();
+    setupTicketList();
+    setupTicketDetails();
+    setupCommentSection();
     setupRegistrationPanel();
-    setupAdminTicketSection();
     setupBackButton();
 });
 
@@ -339,8 +341,8 @@ function setupTicketForm() {
         }
 
         alert('Ticket created successfully!');
+        setupTicketList();
         form.reset();
-
         }
 
         catch (error) {
@@ -500,42 +502,95 @@ function setupRegistrationPanel() {
     });
 }
 
-function setupAdminTicketSection() {
-    const ticketList = document.getElementById('admin-ticket-list');
-    const viewOptions = document.querySelectorAll('[data-admin-ticket-status]');
+function setupTicketList() {
+    const ticketList = document.getElementById('ticket-list');
+    const viewOptions = document.querySelectorAll('[data-ticket-status]');
 
-    if (!ticketList || !viewOptions.length) {
+    if (!ticketList) {
         return;
+    }
+
+    async function loadTickets() {
+        const status = ticketList.dataset.activeStatus;
+
+        const response = await fetchWithAuth('http://127.0.0.1:8000/tickets', {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+
+        ticketList.innerHTML = '';
+
+        data.tickets
+            .filter(function(ticket) { return ticket.status === status; })
+            .forEach(function(ticket) {
+                const ticketElement = document.createElement('div');
+                ticketElement.classList.add('ticket-item');
+                ticketElement.dataset.ticketId = ticket.ticket_id;
+                ticketElement.innerHTML = `
+                    <span class='ticket-id ticket-item-top'>Ticket ID: #${ticket.ticket_id}</span>
+                    <span class='ticket-category'>${ticket.category}</span>
+                    <span class='ticket-detail'>${ticket.created_at}</span>
+                `;
+                ticketList.appendChild(ticketElement);
+            });
     }
 
     viewOptions.forEach(function(option) {
         option.addEventListener('click', function() {
-            viewOptions.forEach(function(button) {
-                button.classList.remove('active');
-            });
-
+            viewOptions.forEach(function(btn) { btn.classList.remove('active'); });
             option.classList.add('active');
-            ticketList.dataset.activeStatus = option.dataset.adminTicketStatus;
+            ticketList.dataset.activeStatus = option.dataset.ticketStatus;
+            loadTickets();
         });
     });
 
     ticketList.addEventListener('click', function(event) {
-        const selection = event.target.closest('.admin-ticket-select');
-        if (selection) {
-            const ticketItem = selection.closest('.admin-ticket-item');
-            if (ticketItem) {
-                ticketItem.classList.toggle('selected', selection.checked);
-            }
-            return;
-        }
-
-        const ticketItem = event.target.closest('.admin-ticket-item');
+        const ticketItem = event.target.closest('.ticket-item');
         if (!ticketItem) {
             return;
         }
-
-        window.location.href = 'ticket-view.html';
+        window.location.href = 'ticket-view.html?ticket_id=' + ticketItem.dataset.ticketId;
     });
+
+    loadTickets();
+}
+
+async function setupTicketDetails() {
+    const detailsContainer = document.getElementById('ticket-details');
+    if (!detailsContainer) {
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticket_id');
+
+    if (!ticketId) {
+        detailsContainer.innerHTML = '<p>No ticket specified.</p>';
+        return;
+    }
+
+    const response = await fetchWithAuth('http://127.0.0.1:8000/tickets?ticket_id=' + ticketId, {
+        method: 'GET'
+    });
+
+    if (!response.ok) {
+        detailsContainer.innerHTML = '<p>Could not load ticket.</p>';
+        return;
+    }
+
+    const data = await response.json();
+    const ticket = data.ticket;
+
+    detailsContainer.innerHTML = `
+        <p><strong>Category:</strong> ${ticket.category}</p>
+        <p><strong>Status:</strong> ${ticket.status}</p>
+        <p><strong>Description:</strong> ${ticket.description}</p>
+    `;
 }
 
 function setupBackButton() {
@@ -543,7 +598,99 @@ function setupBackButton() {
     if (!backButton) {
         return;
     }
-    backButton.addEventListener('click', function() {
-        window.history.back();
+    backButton.addEventListener('click', async function() {
+        
+        try{
+
+            const response = await fetchWithAuth('http://127.0.0.1:8000/back_to_dashboard', {
+                method: 'GET'});
+            
+            if (!response.ok) {
+                let errorData = await response.json();
+                
+                    alert('Error: ' + (errorData.detail || 'Something went wrong'));
+                    return;
+                    
+            }
+
+            const path = await response.json();
+
+            window.location.href = path.path;
+        }
+
+        catch (error) {
+        alert('Could not reach the server.');
+        }
+
     });
+}
+
+function setupCommentSection() {
+    const commentList = document.getElementById('comment-list');
+    const commentForm = document.getElementById('comment-form');
+    const messageField = document.getElementById('comment-message');
+
+    if (!commentList || !commentForm) {
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticket_id');
+
+    if (!ticketId) {
+        return;
+    }
+
+    async function loadComments() {
+        const response = await fetchWithAuth('http://127.0.0.1:8000/get_comment?ticket_id=' + ticketId, {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+
+        commentList.innerHTML = '';
+
+        data.comments.forEach(function(comment) {
+            const commentElement = document.createElement('div');
+            commentElement.classList.add('comment-item');
+
+            const author = comment.admin_code ? comment.admin_code : comment.employee_code;
+
+            commentElement.innerHTML = `
+                <p><strong>${author}:</strong> ${comment.message}</p>
+                <span class="comment-time">${new Date(comment.created_at).toLocaleString()}</span>
+            `;
+            commentList.appendChild(commentElement);
+        });
+    }
+
+    commentForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const message = messageField.value;
+
+        const response = await fetchWithAuth('http://127.0.0.1:8000/push_comment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket_id: parseInt(ticketId),
+                message: message
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert('Error: ' + (errorData.detail || 'Something went wrong'));
+            return;
+        }
+
+        messageField.value = '';
+        loadComments();
+    });
+
+    loadComments();
 }

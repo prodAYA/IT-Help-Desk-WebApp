@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Header, Depends, Form, File, UploadFile
+from fastapi import FastAPI, HTTPException, Request, Header, Depends, Form, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -56,7 +56,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(seconds=1)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
 
     encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm="HS256")
@@ -187,6 +187,9 @@ class Notifications(BaseModel):
     message: str = Field(..., max_length=255)
     ticket_id: int = Field(...)
 
+class Comments(BaseModel):
+    ticket_id: int = Field(...)
+    message: str = Field(..., max_length=350)
 
 # Notificatiion Generation helper
 
@@ -467,3 +470,223 @@ async def create_ticket(category: str = Form(...), description: str = Form(..., 
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Something went wrong while trying to create the ticket")
+
+
+@app.get("/tickets")
+async def get_tickets(current_user: dict = Depends(get_current_user), ticket_id: int | None = None):
+    try:
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+
+        async with conn:
+            async with conn.cursor() as cur:
+                if ticket_id:
+                    if current_user["role"] == "ADMIN":
+                        await cur.execute(
+                            """
+                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                            FROM tickets t
+                            JOIN categories c ON t.category_id = c.category_id
+                            JOIN statuses s ON t.status_id = s.status_id
+                            WHERE t.ticket_id = %s
+                            ORDER BY t.created_at DESC
+                            """,
+                            (ticket_id,)
+                        )
+                    else :
+                        await cur.execute(
+                            """
+                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                            FROM tickets t
+                            JOIN categories c ON t.category_id = c.category_id
+                            JOIN statuses s ON t.status_id = s.status_id
+                            WHERE t.ticket_id = %s AND t.employee_code = %s
+                            """,
+                            (ticket_id, current_user["employee_code"])
+                        )
+                    row = await cur.fetchone()
+
+                    if row is None:
+                        raise HTTPException(status_code=404, detail="Ticket not found")
+
+                    return {"ticket": {
+                        "ticket_id": row[0],
+                        "description": row[1],
+                        "category": row[2],
+                        "status": row[3],
+                        "created_at": row[4].isoformat()
+                    }}
+                
+                elif current_user["role"] == "USER":
+                    await cur.execute(
+                        """
+                        SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                        FROM tickets t
+                        JOIN categories c ON t.category_id = c.category_id
+                        JOIN statuses s ON t.status_id = s.status_id
+                        WHERE t.employee_code = %s
+                        ORDER BY t.created_at DESC
+                        """,
+                        (current_user["employee_code"],)
+                    )
+                elif current_user["role"] == "ADMIN":
+                    await cur.execute(
+                        """
+                        SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                        FROM tickets t
+                        JOIN categories c ON t.category_id = c.category_id
+                        JOIN statuses s ON t.status_id = s.status_id
+                        ORDER BY t.created_at DESC
+                        """
+                    )
+                else:
+                    raise HTTPException(status_code=401, detail="Unrecognized authorization role")
+
+                rows = await cur.fetchall()
+
+        tickets = []
+
+        for row in rows:
+            tickets.append({
+                "ticket_id": row[0],
+                "description": row[1],
+                "category": row[2],
+                "status": row[3],
+                "created_at": row[4].isoformat()
+            })
+
+        return {"tickets": tickets}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong while fetching tickets")
+
+
+@app.post("/push_comment")
+async def store_comment(comment: Comments, current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        if current_user["role"] == "ADMIN":
+            admin_code = current_user["admin_code"]
+            employee_code = None
+        else:
+            employee_code = current_user["employee_code"]
+            admin_code = None
+
+        if comment.message == "":
+            raise HTTPException(status_code=422, detail="Comment Message missing or not received")
+
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+
+        async with conn:
+            async with conn.cursor() as cur:
+
+                await cur.execute(
+                    "INSERT INTO comments (ticket_id, message, employee_code, admin_code ) VALUES (%s, %s, %s, %s)",
+                    (comment.ticket_id, comment.message, employee_code, admin_code,)
+                )
+
+            await conn.commit()
+
+        return {"message": "Comment posted succesfully"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")
+
+
+@app.get("/get_comment")
+async def pull_comments(current_user: dict = Depends(get_current_user), ticket_id: int = Query(...)):
+   
+    try:
+
+        conn = await psycopg.AsyncConnection.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+
+        async with conn:
+            async with conn.cursor() as cur:
+
+                if current_user["role"] == "ADMIN":
+                    await cur.execute(
+                        "SELECT ticket_id FROM tickets WHERE ticket_id = %s",
+                        (ticket_id,)
+                    )
+                elif current_user["role"] == "USER":
+                    await cur.execute(
+                        "SELECT ticket_id FROM tickets WHERE ticket_id = %s AND employee_code = %s",
+                        (ticket_id, current_user["employee_code"])
+                    )
+                else:
+                    raise HTTPException(status_code=403, detail="Invalid Authorization Role")
+
+                ticket_check = await cur.fetchone()
+
+                if ticket_check is None:
+                    raise HTTPException(status_code=404, detail="Ticket not found")
+
+
+                await cur.execute(
+                    """
+                    SELECT message, created_at, employee_code, admin_code
+                    FROM comments
+                    WHERE ticket_id = %s 
+                    ORDER BY created_at ASC
+                    """,
+                    (ticket_id,)
+                )
+
+                rows = await cur.fetchall()
+
+            comments = []
+
+            for row in rows:
+                comments.append({
+                    "message": row[0],
+                    "created_at": row[1].isoformat(),
+                    "employee_code": row[2],
+                    "admin_code": row[3]
+                })
+
+            return {"comments": comments}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")
+
+
+@app.get("/back_to_dashboard")
+def back_button(current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        if current_user["role"] == "ADMIN":
+            return {"path": "admin-dashboard.html"}
+        else:
+            return {"path": "user-dashboard.html"}
+
+    except Exception as e:
+        print(repr(e))
+        raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")

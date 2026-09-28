@@ -81,17 +81,23 @@
     </main>
     
     <section class="ticket-list-section">
-        <div class="ticket-list-card">
-            <div class="ticket-list-heading">
-                <h2>My Tickets</h2>
-                <div class="ticket-view-switch" role="group" aria-label="Ticket status filter">
-                    <button class="ticket-view-option active" type="button" data-ticket-status="pending">Live Tickets</button>
-                    <button class="ticket-view-option" type="button" data-ticket-status="resolved">Resolved Tickets</button>
-                </div>
+
+    <div class="ticket-list-card">
+
+        <div class="ticket-list-heading">
+            <h2>My Tickets</h2>
+
+            <div class="ticket-view-switch" role="group" aria-label="Ticket status filter">
+                <button class="ticket-view-option active" type="button" data-ticket-status="Live">Live Tickets</button>
+                <button class="ticket-view-option" type="button" data-ticket-status="Resolved">Resolved Tickets</button>
             </div>
 
-            <div id="ticket-list" class="ticket-list"></div>
         </div>
+
+        <div id="ticket-list" class="ticket-list" data-active-status="Live"></div>
+   
+    </div>
+
     </section>
 
     <script src="script.js"></script>
