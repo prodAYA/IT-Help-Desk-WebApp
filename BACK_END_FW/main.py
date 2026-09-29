@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Header, Depends, Form, File, UploadFile, Query
+from fastapi import FastAPI, HTTPException, Request, Header, Depends, Form, File, UploadFile, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -185,7 +185,7 @@ class AdminLogin(BaseModel):
 class Notifications(BaseModel):
     employee_code: str = Field(..., min_length=3, max_length=20)
     message: str = Field(..., max_length=255)
-    ticket_id: int = Field(...)
+    ticket_id: int | None
 
 class Comments(BaseModel):
     ticket_id: int = Field(...)
@@ -690,3 +690,63 @@ def back_button(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         print(repr(e))
         raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")
+
+
+@app.delete("/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: int, current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        conn = await psycopg.AsyncConnection.connect(
+                    dbname=os.getenv("DB_NAME"),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT")
+                )
+        
+        async with conn:
+            async with conn.cursor() as cur:
+                if current_user["role"] == "ADMIN":
+                    await cur.execute(
+                        "SELECT employee_code FROM tickets WHERE ticket_id = %s",
+                        (ticket_id,)
+                    )
+                    row = await cur.fetchone()
+                    if not row:
+                        raise HTTPException(status_code=404, detail="Employee Code not found")
+                    
+                    employee_code = row[0]
+
+                    await cur.execute(
+                        "DELETE FROM tickets WHERE ticket_id = %s",
+                        (ticket_id,)
+                    )
+                elif current_user["role"] == "USER":
+                    await cur.execute(
+                        "DELETE FROM tickets WHERE ticket_id = %s AND employee_code = %s",
+                        (ticket_id, current_user["employee_code"])
+                    )
+                    employee_code = current_user["employee_code"]
+                else:
+                    raise HTTPException(status_code=403, detail="Invalid Authorization Role")
+
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Ticket not found")
+
+                
+
+                notification_message = f"Your ticket, ID: #{ticket_id}, was deleted."
+                Notification = Notifications(employee_code= employee_code, ticket_id= None, message= notification_message)
+                await generate_notification(cur, Notification)
+
+            await conn.commit()
+
+            return {"message": "Ticket Deleted"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(repr(e))
+        raise HTTPException(status_code=500, detail="Something Went Wrong")

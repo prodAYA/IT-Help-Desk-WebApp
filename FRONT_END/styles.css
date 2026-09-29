@@ -428,18 +428,58 @@ body.registration-open .topbar-left {
     gap: 0.75rem;
 }
 
-.back-to-tickets {
-    display: inline-block;
-    border: none;
-    background: transparent;
+.ticket-detail-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
     margin-top: 1.5rem;
+}
+
+.back-to-tickets,
+.delete-ticket-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.5rem;
+    background: var(--panel-bg);
     color: var(--primary-color);
+    font: inherit;
     font-weight: 600;
-    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .back-to-tickets:hover {
-    text-decoration: underline;
+    background: var(--input-bg);
+    border-color: var(--primary-light);
+}
+
+.delete-ticket-btn {
+    color: #a84444;
+}
+
+.delete-ticket-btn:hover {
+    background: #fff5f4;
+    border-color: #d8aaaa;
+}
+
+body.dark-mode .delete-ticket-btn {
+    color: #f09a9a;
+}
+
+body.dark-mode .delete-ticket-btn:hover {
+    background: #35252a;
+    border-color: #80535a;
+}
+
+.back-to-tickets:focus-visible,
+.delete-ticket-btn:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
 }
 
 .ticket-view-page {

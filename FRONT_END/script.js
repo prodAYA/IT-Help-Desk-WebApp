@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCommentSection();
     setupRegistrationPanel();
     setupBackButton();
+    setupDeleteTicketButton();
 });
 
 function applyStoredDarkMode() {
@@ -56,6 +57,29 @@ async function forceLogout() {
         
         localStorage.removeItem('authData');
         window.location.href = 'login.html';
+}
+
+async function forceBackToDashboard() {
+    try{
+
+        const response = await fetchWithAuth('http://127.0.0.1:8000/back_to_dashboard', {
+            method: 'GET'});
+        
+        if (!response.ok) {
+            let errorData = await response.json();
+                
+            alert('Error: ' + (errorData.detail || 'Something went wrong'));
+            return;
+        }
+
+        const path = await response.json();
+
+        window.location.href = path.path;
+    }
+
+    catch (error) {
+        alert('Could not reach the server.');
+    }
 }
 
 
@@ -599,23 +623,39 @@ function setupBackButton() {
         return;
     }
     backButton.addEventListener('click', async function() {
-        
+        await forceBackToDashboard();
+    });
+}
+
+function setupDeleteTicketButton() {
+
+    const deleteButton = document.getElementById('delete-ticket');
+
+    if (!deleteButton){
+        return;
+    }
+
+
+    deleteButton.addEventListener('click', async function() {
+    
+        const params = new URLSearchParams(window.location.search);
+        const ticket_id = params.get('ticket_id');
+
         try{
 
-            const response = await fetchWithAuth('http://127.0.0.1:8000/back_to_dashboard', {
-                method: 'GET'});
-            
+            const response = await fetchWithAuth('http://127.0.0.1:8000/tickets/' + ticket_id, {
+                method: 'DELETE'
+            })
+
             if (!response.ok) {
                 let errorData = await response.json();
                 
-                    alert('Error: ' + (errorData.detail || 'Something went wrong'));
-                    return;
-                    
+                alert('Error: ' + (errorData.detail || 'Something went wrong'));
+                return;
             }
 
-            const path = await response.json();
+            await forceBackToDashboard();
 
-            window.location.href = path.path;
         }
 
         catch (error) {
@@ -623,6 +663,7 @@ function setupBackButton() {
         }
 
     });
+
 }
 
 function setupCommentSection() {
