@@ -47,6 +47,10 @@ button, input {
     font: inherit;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* Top Navigation Bar */
 .topbar {
     background-color: var(--primary-color);
@@ -436,8 +440,16 @@ body.registration-open .topbar-left {
     margin-top: 1.5rem;
 }
 
+.ticket-management-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
 .back-to-tickets,
-.delete-ticket-btn {
+.delete-ticket-btn,
+.resolve-ticket-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -453,9 +465,22 @@ body.registration-open .topbar-left {
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
+.ticket-detail-actions button[hidden] {
+    display: none;
+}
+
 .back-to-tickets:hover {
     background: var(--input-bg);
     border-color: var(--primary-light);
+}
+
+.resolve-ticket-btn {
+    color: #56866a;
+}
+
+.resolve-ticket-btn:hover {
+    background: #f1f8f2;
+    border-color: #b8d2bf;
 }
 
 .delete-ticket-btn {
@@ -476,8 +501,18 @@ body.dark-mode .delete-ticket-btn:hover {
     border-color: #80535a;
 }
 
+body.dark-mode .resolve-ticket-btn {
+    color: #9bc9a7;
+}
+
+body.dark-mode .resolve-ticket-btn:hover {
+    background: #24372c;
+    border-color: #4d7058;
+}
+
 .back-to-tickets:focus-visible,
-.delete-ticket-btn:focus-visible {
+.delete-ticket-btn:focus-visible,
+.resolve-ticket-btn:focus-visible {
     outline: 2px solid var(--primary-light);
     outline-offset: 2px;
 }

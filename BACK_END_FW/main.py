@@ -520,7 +520,7 @@ async def get_tickets(current_user: dict = Depends(get_current_user), ticket_id:
                         "category": row[2],
                         "status": row[3],
                         "created_at": row[4].isoformat()
-                    }}
+                    }, "is_admin": current_user["role"] == "ADMIN"}
                 
                 elif current_user["role"] == "USER":
                     await cur.execute(
@@ -743,6 +743,67 @@ async def delete_ticket(ticket_id: int, current_user: dict = Depends(get_current
             await conn.commit()
 
             return {"message": "Ticket Deleted"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(repr(e))
+        raise HTTPException(status_code=500, detail="Something Went Wrong")
+
+@app.patch("/tickets/{ticket_id}")
+async def change_ticket_status(ticket_id: int = Path(...), current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        if current_user["role"] == "USER":
+            raise HTTPException(status_code=403, detail="Authorization Denied")
+
+        conn = await psycopg.AsyncConnection.connect(
+                    dbname=os.getenv("DB_NAME"),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT")
+                )
+
+        async with conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    UPDATE tickets 
+                    SET status_id = CASE 
+                        WHEN status_id = 1 THEN 2 
+                        ELSE 1 
+                    END,
+                    resolved_at = CASE 
+                        WHEN status_id = 1 THEN CURRENT_TIMESTAMP 
+                        ELSE NULL 
+                    END
+                    WHERE ticket_id = %s
+                    """,
+                    (ticket_id,)
+                )
+
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Ticket not found")
+
+                await cur.execute(
+                    "SELECT employee_code FROM tickets WHERE ticket_id = %s",
+                    (ticket_id,)
+                )
+                row = await cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Employee Code not found")
+                                    
+                employee_code = row[0]
+
+                notification_message = f"Your ticket, ID: #{ticket_id}, has been reviewed by an admin"
+                Notification = Notifications(employee_code= employee_code, ticket_id= ticket_id, message= notification_message)
+                await generate_notification(cur, Notification)
+
+
+            await conn.commit()
 
     except HTTPException:
         raise

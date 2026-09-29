@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupRegistrationPanel();
     setupBackButton();
     setupDeleteTicketButton();
+    setupTicketStatusButton();
 });
 
 function applyStoredDarkMode() {
@@ -609,12 +610,21 @@ async function setupTicketDetails() {
 
     const data = await response.json();
     const ticket = data.ticket;
+    const showResolve = data.is_admin;
+    const resolveButton = document.getElementById('resolve-ticket')
 
     detailsContainer.innerHTML = `
         <p><strong>Category:</strong> ${ticket.category}</p>
         <p><strong>Status:</strong> ${ticket.status}</p>
         <p><strong>Description:</strong> ${ticket.description}</p>
     `;
+
+    if (showResolve) {
+        resolveButton.classList.remove('hidden');
+    }
+    else {
+        resolveButton.classList.add('hidden');
+    }
 }
 
 function setupBackButton() {
@@ -655,6 +665,46 @@ function setupDeleteTicketButton() {
             }
 
             await forceBackToDashboard();
+
+        }
+
+        catch (error) {
+        alert('Could not reach the server.');
+        }
+
+    });
+
+}
+
+function setupTicketStatusButton() {
+
+    const statusButton = document.getElementById('resolve-ticket')
+
+    if (!statusButton){
+        return;
+    }
+
+
+    statusButton.addEventListener('click', async function(button) {
+        button.preventDefault;
+    
+        const params = new URLSearchParams(window.location.search);
+        const ticket_id = params.get('ticket_id');
+
+        try{
+
+            const response = await fetchWithAuth('http://127.0.0.1:8000/tickets/' + ticket_id, {
+                method: 'PATCH'
+            })
+
+            if (!response.ok) {
+                let errorData = await response.json();
+                
+                alert('Error: ' + (errorData.detail || 'Something went wrong'));
+                return;
+            }
+
+            await setupTicketDetails();
 
         }
 

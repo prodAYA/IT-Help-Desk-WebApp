@@ -16,7 +16,7 @@
                 <button class="dropdown-btn" type="button">☰ Options</button>
                 <div class="dropdown-content">
                     <a href="#" id="darkmode-toggle">🌙 Enable Dark Mode</a>
-                    <a href="login.html">↩️ Logout</a>
+                    <button id="logout-btn">↩️ Logout</button>
                 </div>
             </div>
         </div>
@@ -28,7 +28,10 @@
             <div id="ticket-details" class="ticket-details"></div>
             <div class="ticket-detail-actions">
                 <button class="back-to-tickets" id="back-to-tickets" type="button">Back to Dashboard</button>
-                <button class="delete-ticket-btn" id="delete-ticket" type="button">Delete This Ticket</button>
+                <div class="ticket-management-actions">
+                    <button class="resolve-ticket-btn hidden" id="resolve-ticket" type="button">Change Ticket Status</button>
+                    <button class="delete-ticket-btn" id="delete-ticket" type="button">Delete This Ticket</button>
+                </div>
             </div>
         </section>
 
