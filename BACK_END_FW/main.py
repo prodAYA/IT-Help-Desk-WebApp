@@ -186,6 +186,7 @@ class Notifications(BaseModel):
     employee_code: str = Field(..., min_length=3, max_length=20)
     message: str = Field(..., max_length=255)
     ticket_id: int | None
+    category: str = Field(..., max_length=50)
 
 class Comments(BaseModel):
     ticket_id: int = Field(...)
@@ -196,8 +197,8 @@ class Comments(BaseModel):
 async def generate_notification(cur, Notification: Notifications):
 
     await cur.execute(
-        "INSERT INTO notifications (employee_code, ticket_id, message) VALUES (%s, %s, %s)",
-        (Notification.employee_code, Notification.ticket_id, Notification.message)
+        "INSERT INTO notifications (employee_code, ticket_id, message, category) VALUES (%s, %s, %s, %s)",
+        (Notification.employee_code, Notification.ticket_id, Notification.message, Notification.category)
     )
 
     return
@@ -245,9 +246,12 @@ async def create_admin(admin: AdminCreate):
 #Create a new user endpoint
 
 @app.post("/users")
-async def create_user(user: UserCreate):
+async def create_user(user: UserCreate, current_user: dict = Depends(get_current_user)):
 
     try:
+
+        if get_current_user["role"] != "ADMIN":
+            raise HTTPException(status_code=403, detail="Invalid Authorization")
 
         conn = await psycopg.AsyncConnection.connect(
             dbname=os.getenv("DB_NAME"),
@@ -451,12 +455,12 @@ async def create_ticket(category: str = Form(...), description: str = Form(..., 
 
                 await cur.execute(
                     "INSERT INTO tickets (employee_code, category_id, status_id, description, attachment_path) VALUES (%s, %s, %s, %s, %s) RETURNING ticket_id",
-                    (current_user["employee_code"], category_id, status_id, description, attachment_path )
+                    (current_user["employee_code"], category_id, status_id, description, attachment_path,)
                 )
 
                 ticket_id = (await cur.fetchone())[0]
                 notification_message = f"Your ticket has been generated with ID: #{ticket_id} and will be reviewed by an administrator soon."
-                notification = Notifications(employee_code=current_user["employee_code"], ticket_id=ticket_id, message=notification_message)
+                notification = Notifications(employee_code=current_user["employee_code"], ticket_id=ticket_id, message=notification_message, category="STATUS")
 
                 await generate_notification(cur, notification)
 
@@ -469,6 +473,7 @@ async def create_ticket(category: str = Form(...), description: str = Form(..., 
         raise
 
     except Exception as e:
+        print(repr(e))
         raise HTTPException(status_code=500, detail="Something went wrong while trying to create the ticket")
 
 
@@ -489,7 +494,7 @@ async def get_tickets(current_user: dict = Depends(get_current_user), ticket_id:
                     if current_user["role"] == "ADMIN":
                         await cur.execute(
                             """
-                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at, t.attachment_path
                             FROM tickets t
                             JOIN categories c ON t.category_id = c.category_id
                             JOIN statuses s ON t.status_id = s.status_id
@@ -501,7 +506,7 @@ async def get_tickets(current_user: dict = Depends(get_current_user), ticket_id:
                     else :
                         await cur.execute(
                             """
-                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at
+                            SELECT t.ticket_id, t.description, c.category_name, s.status_name, t.created_at, t.attachment_path
                             FROM tickets t
                             JOIN categories c ON t.category_id = c.category_id
                             JOIN statuses s ON t.status_id = s.status_id
@@ -519,7 +524,8 @@ async def get_tickets(current_user: dict = Depends(get_current_user), ticket_id:
                         "description": row[1],
                         "category": row[2],
                         "status": row[3],
-                        "created_at": row[4].isoformat()
+                        "created_at": row[4].isoformat(),
+                        "attachment_path": row[5]
                     }, "is_admin": current_user["role"] == "ADMIN"}
                 
                 elif current_user["role"] == "USER":
@@ -577,6 +583,8 @@ async def store_comment(comment: Comments, current_user: dict = Depends(get_curr
         if current_user["role"] == "ADMIN":
             admin_code = current_user["admin_code"]
             employee_code = None
+            notification_message = f"An Admin commented on your ticket, ID: #{comment.ticket_id}"
+            
         else:
             employee_code = current_user["employee_code"]
             admin_code = None
@@ -596,9 +604,22 @@ async def store_comment(comment: Comments, current_user: dict = Depends(get_curr
             async with conn.cursor() as cur:
 
                 await cur.execute(
-                    "INSERT INTO comments (ticket_id, message, employee_code, admin_code ) VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO comments (ticket_id, message, employee_code, admin_code) VALUES (%s,%s,%s,%s)",
                     (comment.ticket_id, comment.message, employee_code, admin_code,)
                 )
+
+
+                if admin_code:
+
+                    await cur.execute(
+                        "SELECT employee_code FROM tickets WHERE ticket_id = %s",
+                        (comment.ticket_id,)
+                    )                    
+                    row = await cur.fetchone()
+
+                    employee_code = row[0]
+                    notification = Notifications(employee_code=employee_code, ticket_id=comment.ticket_id, message=notification_message, category="COMMENT")
+                    await generate_notification(cur, notification)
 
             await conn.commit()
 
@@ -608,7 +629,8 @@ async def store_comment(comment: Comments, current_user: dict = Depends(get_curr
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Something went wrong while creating the admin")
+        print(e)
+        raise HTTPException(status_code=500, detail="Something went wrong while sending your comment")
 
 
 @app.get("/get_comment")
@@ -737,7 +759,7 @@ async def delete_ticket(ticket_id: int, current_user: dict = Depends(get_current
                 
 
                 notification_message = f"Your ticket, ID: #{ticket_id}, was deleted."
-                Notification = Notifications(employee_code= employee_code, ticket_id= None, message= notification_message)
+                Notification = Notifications(employee_code= employee_code, ticket_id= None, message= notification_message, category="STATUS")
                 await generate_notification(cur, Notification)
 
             await conn.commit()
@@ -799,7 +821,7 @@ async def change_ticket_status(ticket_id: int = Path(...), current_user: dict = 
                 employee_code = row[0]
 
                 notification_message = f"Your ticket, ID: #{ticket_id}, has been reviewed by an admin"
-                Notification = Notifications(employee_code= employee_code, ticket_id= ticket_id, message= notification_message)
+                Notification = Notifications(employee_code= employee_code, ticket_id= ticket_id, message= notification_message, category = "STATUS")
                 await generate_notification(cur, Notification)
 
 
@@ -811,3 +833,91 @@ async def change_ticket_status(ticket_id: int = Path(...), current_user: dict = 
     except Exception as e:
         print(repr(e))
         raise HTTPException(status_code=500, detail="Something Went Wrong")
+
+
+@app.get("/notifications")
+async def get_notifications(category: str = Query(...), current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        if current_user["role"] == "ADMIN":
+            raise HTTPException(status_code=403, detail="Authorization Denied")
+        
+        conn = await psycopg.AsyncConnection.connect(
+                    dbname=os.getenv("DB_NAME"),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT")
+                )
+        
+        async with conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT ticket_id, message, category, created_at, notification_id
+                    FROM notifications
+                    WHERE employee_code = %s AND category = %s
+                    """,
+                    (current_user["employee_code"], category,)
+                )
+
+                rows = await cur.fetchall()
+
+                notifications = []
+
+                for row in rows:
+                    notifications.append ({
+                        "ticket_id": row[0],
+                        "message": row[1],
+                        "category": row[2],
+                        "created_at": row[3],
+                        "notification_id": row[4]
+                    })
+
+            return {"notifications": notifications}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail= "Something Went Wrong") 
+
+@app.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: int = Path(...), current_user: dict = Depends(get_current_user)):
+
+    try:
+
+        if current_user["role"] == "ADMIN":
+            raise HTTPException(status_code=403, detail="Authorization Denied")
+        
+        conn = await psycopg.AsyncConnection.connect(
+                    dbname=os.getenv("DB_NAME"),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT")
+                )
+        
+        async with conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    DELETE FROM notifications
+                    WHERE employee_code = %s AND notification_id = %s
+                    """,
+                    (current_user["employee_code"], notification_id,)
+                )
+
+                if cur.rowcount == 0:
+                    raise HTTPException (status_code=404, detail="The notification you are trying to delete has already been deleted or does not exist")
+
+            await conn.commit()
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail= "Something Went Wrong") 

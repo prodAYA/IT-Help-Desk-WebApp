@@ -285,12 +285,13 @@ function setupDropdown() {
 }
 
 function setupNotificationPanel() {
-
     const notificationButton = document.getElementById('notification-btn');
     const notificationPanel = document.getElementById('notification-panel');
     const closeButton = document.getElementById('close-notifications');
+    const notificationList = document.getElementById('notification-list');
+    const tabs = document.querySelectorAll('.notification-tab');
 
-    if (!notificationButton || !notificationPanel) {
+    if (!notificationButton || !notificationPanel || !notificationList) {
         return;
     }
 
@@ -299,8 +300,64 @@ function setupNotificationPanel() {
         document.body.classList.toggle('notifications-open', isOpen);
     }
 
+    async function dismissNotification(notificationId, item) {
+        const response = await fetchWithAuth('http://127.0.0.1:8000/notifications/' + notificationId, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            item.remove();
+        }
+    }
+
+    async function loadNotifications() {
+        const activeTab = document.querySelector('.notification-tab.active');
+        const category = activeTab.dataset.tab;
+
+        const response = await fetchWithAuth('http://127.0.0.1:8000/notifications?category=' + category, {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+
+        notificationList.innerHTML = '';
+
+        data.notifications.forEach(function(notification) {
+            const item = document.createElement('div');
+            item.classList.add('notification-item');
+            item.dataset.ticketId = notification.ticket_id;
+            item.dataset.notificationId = notification.notification_id;
+
+            item.innerHTML = `
+                <p class="notification-message">${notification.message}</p>
+                <span class="notification-time">${new Date(notification.created_at).toLocaleString()}</span>
+                <button class="dismiss-notification" type="button">×</button>
+            `;
+
+            const dismissButton = item.querySelector('.dismiss-notification');
+            dismissButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+                dismissNotification(notification.notification_id, item);
+            });
+
+            item.addEventListener('click', function() {
+                window.location.href = 'ticket-view.html?ticket_id=' + notification.ticket_id;
+            });
+
+            notificationList.appendChild(item);
+        });
+    }
+
     notificationButton.addEventListener('click', function() {
-        setPanelOpen(!notificationPanel.classList.contains('open'));
+        const isOpen = !notificationPanel.classList.contains('open');
+        setPanelOpen(isOpen);
+        if (isOpen) {
+            loadNotifications();
+        }
     });
 
     if (closeButton) {
@@ -308,6 +365,14 @@ function setupNotificationPanel() {
             setPanelOpen(false);
         });
     }
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            loadNotifications();
+        });
+    });
 }
 
 function setupTicketForm() {
@@ -500,7 +565,7 @@ function setupRegistrationPanel() {
         const endpoint = isAdmin ? 'http://127.0.0.1:8000/admins' : 'http://127.0.0.1:8000/users';
 
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetchWithAuth(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -613,11 +678,37 @@ async function setupTicketDetails() {
     const showResolve = data.is_admin;
     const resolveButton = document.getElementById('resolve-ticket')
 
+    if (!ticket.attachment_path) {
     detailsContainer.innerHTML = `
         <p><strong>Category:</strong> ${ticket.category}</p>
         <p><strong>Status:</strong> ${ticket.status}</p>
         <p><strong>Description:</strong> ${ticket.description}</p>
     `;
+    }
+    else {
+    detailsContainer.innerHTML = `
+        <p><strong>Category:</strong> ${ticket.category}</p>
+        <p><strong>Status:</strong> ${ticket.status}</p>
+        <p><strong>Description:</strong> ${ticket.description}</p>
+        <div class="attachment-preview">
+            <img id="attachment-thumb" src="${ticket.attachment_path}" alt="Attachment">
+        </div>
+    `;
+
+    const thumb = document.getElementById('attachment-thumb');
+    const lightbox = document.createElement('div');
+    lightbox.classList.add('lightbox-overlay');
+    lightbox.innerHTML = `<img src="${ticket.attachment_path}" alt="Attachment full size">`;
+    document.body.appendChild(lightbox);
+
+    thumb.addEventListener('click', function() {
+        lightbox.classList.add('open');
+    });
+
+    lightbox.addEventListener('click', function() {
+        lightbox.classList.remove('open');
+    });
+    }
 
     if (showResolve) {
         resolveButton.classList.remove('hidden');
